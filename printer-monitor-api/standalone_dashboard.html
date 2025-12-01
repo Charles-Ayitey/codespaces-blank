@@ -323,6 +323,17 @@
             return colors[status] || 'text-gray-600 bg-gray-100';
         }
 
+        // Get status style (bg, text, dot colors)
+        function getStatusStyle(status) {
+            const styles = {
+                'idle': { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+                'printing': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+                'offline': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+                'warmup': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' }
+            };
+            return styles[status] || { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' };
+        }
+
         // Get supply color based on toner/supply name
         function getSupplyColor(percentage, name = '') {
             const nameLower = name.toLowerCase();
@@ -375,26 +386,6 @@
             });
         }
 
-        // Get other relevant info (maintenance items, drums, etc.) - shown without progress bars
-        function getMaintenanceInfo(supplies) {
-            if (!supplies || !Array.isArray(supplies)) return [];
-            
-            return supplies.filter(supply => {
-                if (!supply.name || supply.name.trim() === '') return false;
-                if (!supply.max || supply.max <= 0) return false;
-                
-                const name = supply.name.trim().toLowerCase();
-                if (/^\d+$/.test(name)) return false;
-                
-                const percentage = (supply.current / supply.max) * 100;
-                if (percentage < 0 || percentage > 100) return false;
-                
-                // Include maintenance items, drums, etc.
-                const maintenanceKeywords = ['drum', 'fuser', 'belt', 'maintenance', 'kit', 'waste', 'transfer', 'roller'];
-                return maintenanceKeywords.some(keyword => name.includes(keyword));
-            });
-        }
-
         // Update stats
         function updateStats() {
             const total = printers.length;
@@ -437,189 +428,82 @@
             }
 
             emptyState.classList.add('hidden');
-            grid.innerHTML = filtered.map(printer => `
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            grid.innerHTML = filtered.map(printer => {
+                const style = getStatusStyle(printer.status);
+                const tonerSupplies = filterSupplies(printer.supplies);
+                const hasLowSupplies = tonerSupplies.some(s => (s.current / s.max * 100) < 20);
+                
+                return `
+                <a href="printer-view.html?ip=${printer.ip}" class="block bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer">
                     <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
-                        <div class="flex items-start justify-between">
-                            <div class="flex items-start gap-3">
-                                <svg class="w-8 h-8 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                 </svg>
-                                <div>
-                                    <h3 class="font-bold text-lg">${printer.name || 'Unknown Printer'}</h3>
-                                </div>
+                                <h3 class="font-bold text-lg">${printer.name || 'Unknown Printer'}</h3>
                             </div>
-                            <button onclick="removePrinter('${printer.ip}')" class="p-1 hover:bg-blue-800 rounded" title="Remove printer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                            </button>
+                            <div class="flex items-center gap-2">
+                                ${hasLowSupplies ? '<span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" title="Low supplies"></span>' : ''}
+                                ${printer.status === 'offline' ? '<span class="w-2 h-2 rounded-full bg-red-400 animate-pulse" title="Offline"></span>' : ''}
+                            </div>
                         </div>
                     </div>
-                    <div class="p-4 space-y-4">
-                        <!-- Device Information Group -->
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
-                                </svg>
-                                Device Information
-                            </h4>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <p class="text-gray-500 text-xs">IP Address</p>
-                                    <p class="font-mono text-sm text-gray-900">${printer.ip}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-xs">Model</p>
-                                    <p class="font-medium text-sm text-gray-900 truncate" title="${printer.model || 'Unknown'}">${printer.model || 'Unknown'}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-xs">Serial Number</p>
-                                    <p class="font-mono text-sm text-gray-900">${printer.serial || 'N/A'}</p>
-                                </div>
+                    <div class="p-4">
+                        <!-- Device Information -->
+                        <div class="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
+                            <div>
+                                <p class="text-gray-400 text-xs uppercase tracking-wide">IP Address</p>
+                                <p class="font-mono text-sm text-gray-900">${printer.ip}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs uppercase tracking-wide">Model</p>
+                                <p class="text-sm text-gray-900 truncate" title="${printer.model || 'Unknown'}">${printer.model || 'Unknown'}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs uppercase tracking-wide">Serial</p>
+                                <p class="font-mono text-sm text-gray-900">${printer.serial || 'N/A'}</p>
                             </div>
                         </div>
 
-                        <!-- Status & Usage Group -->
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                                Status & Usage
-                            </h4>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <p class="text-gray-500 text-xs mb-1">Current Status</p>
-                                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full ${getStatusColor(printer.status)}">
-                                        <span class="w-2 h-2 rounded-full ${printer.status === 'idle' ? 'bg-green-500' : printer.status === 'printing' ? 'bg-blue-500' : printer.status === 'offline' ? 'bg-red-500' : 'bg-yellow-500'}"></span>
-                                        <span class="font-semibold capitalize text-sm">${printer.status}</span>
-                                    </div>
+                        <!-- Status & Usage -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${style.bg} ${style.text}">
+                                    <span class="w-2 h-2 rounded-full ${style.dot}"></span>
+                                    <span class="font-semibold capitalize text-sm">${printer.status}</span>
                                 </div>
-                                <div>
-                                    <p class="text-gray-500 text-xs mb-1">Total Pages Printed</p>
-                                    <p class="font-bold text-xl text-gray-900">${printer.totalPages.toLocaleString()}</p>
-                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-gray-400 text-xs uppercase tracking-wide">Pages</p>
+                                <p class="font-bold text-lg text-gray-900">${printer.totalPages.toLocaleString()}</p>
                             </div>
                         </div>
 
-                        <!-- Supplies Group -->
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                </svg>
-                                Toner / Ink Levels
-                            </h4>
-                            ${(() => {
-                                const validSupplies = filterSupplies(printer.supplies);
-                                if (validSupplies.length > 0) {
-                                    return `
-                                        <div class="space-y-2">
-                                            ${validSupplies.map(supply => {
-                                                const percentage = (supply.current / supply.max) * 100;
-                                                return `
-                                                    <div>
-                                                        <div class="flex justify-between items-center mb-1">
-                                                            <span class="text-xs text-gray-700">${supply.name}</span>
-                                                            <span class="text-xs font-semibold ${percentage < 20 ? 'text-red-600' : percentage < 50 ? 'text-yellow-600' : 'text-green-600'}">${percentage.toFixed(0)}%</span>
-                                                        </div>
-                                                        <div class="w-full bg-gray-200 rounded-full h-2">
-                                                            <div class="h-2 rounded-full transition-all ${getSupplyColor(percentage, supply.name)}" style="width: ${percentage}%"></div>
-                                                        </div>
-                                                    </div>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    `;
-                                } else {
-                                    return '<p class="text-sm text-gray-500 italic">No toner/ink information available</p>';
-                                }
-                            })()}
-                        </div>
-
-                        <!-- Maintenance Info (shown as compact badges) -->
-                        ${(() => {
-                            const maintenanceItems = getMaintenanceInfo(printer.supplies);
-                            if (maintenanceItems.length > 0) {
-                                return `
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            </svg>
-                                            Maintenance Components
-                                        </h4>
-                                        <div class="flex flex-wrap gap-2">
-                                            ${maintenanceItems.map(item => {
-                                                const percentage = (item.current / item.max) * 100;
-                                                const colorClass = percentage < 20 ? 'bg-red-100 text-red-700 border-red-200' : percentage < 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200';
-                                                return `
-                                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs ${colorClass}" title="${item.name}">
-                                                        <span class="truncate max-w-20">${item.name.replace(/cartridge|toner|unit/gi, '').trim()}</span>
-                                                        <span class="font-semibold">${percentage.toFixed(0)}%</span>
-                                                    </span>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                            return '';
-                        })()}
-
-                        <!-- Alerts Section -->
-                        ${(() => {
-                            const alerts = [];
-                            
-                            // Offline alert
-                            if (printer.status === 'offline') {
-                                alerts.push(`
-                                    <div class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-red-700">
-                                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                        </svg>
-                                        <span class="text-xs">Printer offline - check connection</span>
-                                    </div>
-                                `);
-                            }
-                            
-                            // Low supply alert
-                            const lowSupplies = filterSupplies(printer.supplies).filter(s => (s.current / s.max * 100) < 20);
-                            if (lowSupplies.length > 0) {
-                                alerts.push(`
-                                    <div class="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">
-                                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                                        </svg>
-                                        <span class="text-xs">Low: ${lowSupplies.map(s => s.name).join(', ')}</span>
-                                    </div>
-                                `);
-                            }
-                            
-                            if (alerts.length > 0) {
-                                return `
-                                    <div class="space-y-2">
-                                        ${alerts.join('')}
-                                    </div>
-                                `;
-                            }
-                            return '';
-                        })()}
+                        <!-- Quick Supply Indicators -->
+                        ${tonerSupplies.length > 0 ? `
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <div class="flex items-center gap-2">
+                                    ${tonerSupplies.slice(0, 4).map(supply => {
+                                        const percentage = (supply.current / supply.max) * 100;
+                                        return `
+                                            <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden" title="${supply.name}: ${percentage.toFixed(0)}%">
+                                                <div class="h-full rounded-full ${getSupplyColor(percentage, supply.name)}" style="width: ${percentage}%"></div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
 
                         <!-- Footer -->
-                        <div class="pt-2 border-t border-gray-200 flex justify-between items-center">
-                            <p class="text-xs text-gray-400">Last updated: ${new Date(printer.lastUpdate).toLocaleTimeString()}</p>
-                            <span class="inline-flex items-center gap-1 text-xs ${printer.online ? 'text-green-600' : 'text-red-600'}">
-                                <span class="w-2 h-2 rounded-full ${printer.online ? 'bg-green-500' : 'bg-red-500'}"></span>
-                                ${printer.online ? 'Online' : 'Offline'}
-                            </span>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                            <p class="text-xs text-gray-400">Updated ${new Date(printer.lastUpdate).toLocaleTimeString()}</p>
+                            <span class="text-xs text-blue-600 font-medium">View details →</span>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                </a>
+            `}).join('');
         }
 
         // Initialize

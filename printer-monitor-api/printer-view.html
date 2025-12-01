@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        .tab-active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen p-6">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-6 flex items-center gap-4">
+                <a href="standalone_dashboard.html" class="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div class="flex-1">
+                    <h1 id="printer-name" class="text-2xl font-bold text-gray-900">Loading...</h1>
+                    <p id="printer-ip" class="text-gray-500 font-mono text-sm"></p>
+                </div>
+                <div id="status-badge" class="px-4 py-2 rounded-full">
+                    <!-- Status will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="hidden text-center py-12 bg-red-50 rounded-lg border border-red-200">
+                <svg class="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <p id="error-message" class="text-red-700 font-semibold">Printer not found</p>
+                <a href="standalone_dashboard.html" class="inline-block mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    Back to Dashboard
+                </a>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="text-center py-12">
+                <svg class="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <p class="text-gray-500">Loading printer details...</p>
+            </div>
+
+            <!-- Main Content -->
+            <div id="main-content" class="hidden">
+                <!-- Tabs -->
+                <div class="bg-white rounded-t-lg shadow">
+                    <div class="flex border-b">
+                        <button onclick="switchTab('overview')" id="tab-overview" class="px-6 py-3 text-sm font-medium tab-active">
+                            Overview
+                        </button>
+                        <button onclick="switchTab('supplies')" id="tab-supplies" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                            Supplies
+                        </button>
+                        <button onclick="switchTab('maintenance')" id="tab-maintenance" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                            Maintenance
+                        </button>
+                        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                            Alerts
+                            <span id="alert-count" class="hidden ml-1 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="bg-white rounded-b-lg shadow p-6">
+                    <!-- Overview Tab -->
+                    <div id="content-overview" class="tab-content">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Device Information -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                                    </svg>
+                                    Device Information
+                                </h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span class="text-gray-600">IP Address</span>
+                                        <span id="detail-ip" class="font-mono font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span class="text-gray-600">Model</span>
+                                        <span id="detail-model" class="font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span class="text-gray-600">Serial Number</span>
+                                        <span id="detail-serial" class="font-mono font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2">
+                                        <span class="text-gray-600">Connection</span>
+                                        <span id="detail-connection" class="font-medium"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Usage Statistics -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                    </svg>
+                                    Usage Statistics
+                                </h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span class="text-gray-600">Current Status</span>
+                                        <span id="detail-status" class="font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <span class="text-gray-600">Total Pages Printed</span>
+                                        <span id="detail-pages" class="font-bold text-xl"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2">
+                                        <span class="text-gray-600">Last Updated</span>
+                                        <span id="detail-updated" class="text-sm"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Supply Summary -->
+                        <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Quick Supply Summary</h3>
+                            <div id="supply-summary" class="flex flex-wrap gap-3">
+                                <!-- Supply badges will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supplies Tab -->
+                    <div id="content-supplies" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Toner / Ink Levels</h3>
+                        <div id="supplies-list" class="space-y-4">
+                            <!-- Supplies will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Maintenance Tab -->
+                    <div id="content-maintenance" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Maintenance Components</h3>
+                        <p class="text-gray-500 text-sm mb-4">These components have limited lifespans and may need replacement or servicing.</p>
+                        <div id="maintenance-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Maintenance items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Alerts Tab -->
+                    <div id="content-alerts" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Alerts & Warnings</h3>
+                        <div id="alerts-list" class="space-y-3">
+                            <!-- Alerts will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-6 flex gap-3">
+                    <button onclick="refreshPrinter()" id="refresh-btn" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                    <button onclick="removePrinter()" class="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Remove Printer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let printer = null;
+        let printerIp = null;
+
+        // Get printer IP from URL
+        function getPrinterIpFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('ip');
+        }
+
+        // Filter toner/ink supplies
+        function filterTonerSupplies(supplies) {
+            if (!supplies || !Array.isArray(supplies)) return [];
+            
+            return supplies.filter(supply => {
+                if (!supply.max || supply.max <= 0) return false;
+                const percentage = (supply.current / supply.max) * 100;
+                if (percentage < 0 || percentage > 100) return false;
+                if (!supply.name || supply.name.trim() === '') return false;
+                
+                const name = supply.name.trim().toLowerCase();
+                if (/^\d+$/.test(name)) return false;
+                
+                const tonerInkKeywords = ['toner', 'ink', 'cyan', 'magenta', 'yellow', 'black', 'cartridge', 'color'];
+                const isTonerOrInk = tonerInkKeywords.some(keyword => name.includes(keyword));
+                
+                const excludeKeywords = ['drum', 'fuser', 'belt', 'maintenance', 'kit', 'waste', 'transfer', 'roller', 'unit', 'life'];
+                const isExcluded = excludeKeywords.some(keyword => name.includes(keyword));
+                
+                return isTonerOrInk && !isExcluded;
+            });
+        }
+
+        // Filter maintenance items
+        function filterMaintenanceItems(supplies) {
+            if (!supplies || !Array.isArray(supplies)) return [];
+            
+            return supplies.filter(supply => {
+                if (!supply.name || supply.name.trim() === '') return false;
+                if (!supply.max || supply.max <= 0) return false;
+                
+                const name = supply.name.trim().toLowerCase();
+                if (/^\d+$/.test(name)) return false;
+                
+                const percentage = (supply.current / supply.max) * 100;
+                if (percentage < 0 || percentage > 100) return false;
+                
+                const maintenanceKeywords = ['drum', 'fuser', 'belt', 'maintenance', 'kit', 'waste', 'transfer', 'roller'];
+                return maintenanceKeywords.some(keyword => name.includes(keyword));
+            });
+        }
+
+        // Get supply bar color
+        function getSupplyColor(percentage, name = '') {
+            const nameLower = name.toLowerCase();
+            if (nameLower.includes('cyan')) return 'bg-cyan-500';
+            if (nameLower.includes('magenta') || nameLower.includes('pink')) return 'bg-pink-500';
+            if (nameLower.includes('yellow')) return 'bg-yellow-400';
+            if (nameLower.includes('black') || nameLower.includes('noir')) return 'bg-gray-800';
+            if (percentage > 50) return 'bg-green-500';
+            if (percentage > 20) return 'bg-yellow-500';
+            return 'bg-red-500';
+        }
+
+        // Get status styling
+        function getStatusStyle(status) {
+            const styles = {
+                'idle': { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+                'printing': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+                'offline': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
+                'warmup': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' }
+            };
+            return styles[status] || { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' };
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-gray-500');
+            });
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            document.getElementById(`tab-${tab}`).classList.remove('text-gray-500');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+        }
+
+        // Fetch printer data
+        async function fetchPrinter() {
+            try {
+                const response = await fetch(`${API_BASE}/printers/${printerIp}`);
+                if (!response.ok) {
+                    throw new Error('Printer not found');
+                }
+                printer = await response.json();
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                renderPrinter();
+            } catch (err) {
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('error-state').classList.remove('hidden');
+                document.getElementById('error-message').textContent = err.message || 'Failed to load printer';
+            }
+        }
+
+        // Refresh printer
+        async function refreshPrinter() {
+            const btn = document.getElementById('refresh-btn');
+            const icon = document.getElementById('refresh-icon');
+            btn.disabled = true;
+            icon.classList.add('animate-spin');
+            
+            try {
+                await fetch(`${API_BASE}/printers/${printerIp}/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                await fetchPrinter();
+            } catch (err) {
+                console.error('Refresh failed:', err);
+            } finally {
+                btn.disabled = false;
+                icon.classList.remove('animate-spin');
+            }
+        }
+
+        // Remove printer
+        async function removePrinter() {
+            if (!confirm(`Remove printer ${printerIp}?`)) return;
+            
+            try {
+                await fetch(`${API_BASE}/printers/${printerIp}`, { method: 'DELETE' });
+                window.location.href = 'standalone_dashboard.html';
+            } catch (err) {
+                alert('Failed to remove printer');
+            }
+        }
+
+        // Render printer details
+        function renderPrinter() {
+            const style = getStatusStyle(printer.status);
+
+            // Header
+            document.getElementById('printer-name').textContent = printer.name || 'Unknown Printer';
+            document.getElementById('printer-ip').textContent = printer.ip;
+            document.title = `${printer.name || printer.ip} - Printer Details`;
+
+            // Status badge
+            document.getElementById('status-badge').className = `px-4 py-2 rounded-full ${style.bg} ${style.text}`;
+            document.getElementById('status-badge').innerHTML = `
+                <span class="inline-flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full ${style.dot}"></span>
+                    <span class="font-semibold capitalize">${printer.status}</span>
+                </span>
+            `;
+
+            // Overview tab - Device info
+            document.getElementById('detail-ip').textContent = printer.ip;
+            document.getElementById('detail-model').textContent = printer.model || 'Unknown';
+            document.getElementById('detail-serial').textContent = printer.serial || 'N/A';
+            document.getElementById('detail-connection').innerHTML = printer.online 
+                ? '<span class="text-green-600">● Online</span>' 
+                : '<span class="text-red-600">● Offline</span>';
+            document.getElementById('detail-status').innerHTML = `<span class="${style.text} capitalize">${printer.status}</span>`;
+            document.getElementById('detail-pages').textContent = printer.totalPages.toLocaleString();
+            document.getElementById('detail-updated').textContent = new Date(printer.lastUpdate).toLocaleString();
+
+            // Supply summary badges
+            const tonerSupplies = filterTonerSupplies(printer.supplies);
+            const supplySummary = document.getElementById('supply-summary');
+            if (tonerSupplies.length > 0) {
+                supplySummary.innerHTML = tonerSupplies.map(supply => {
+                    const percentage = (supply.current / supply.max) * 100;
+                    const colorClass = percentage < 20 ? 'bg-red-100 text-red-700 border-red-300' : 
+                                       percentage < 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 
+                                       'bg-green-100 text-green-700 border-green-300';
+                    return `
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${colorClass}">
+                            <span class="w-3 h-3 rounded-full ${getSupplyColor(percentage, supply.name)}"></span>
+                            <span class="font-medium">${percentage.toFixed(0)}%</span>
+                        </span>
+                    `;
+                }).join('');
+            } else {
+                supplySummary.innerHTML = '<span class="text-gray-500 text-sm">No supply data available</span>';
+            }
+
+            // Supplies tab
+            const suppliesList = document.getElementById('supplies-list');
+            if (tonerSupplies.length > 0) {
+                suppliesList.innerHTML = tonerSupplies.map(supply => {
+                    const percentage = (supply.current / supply.max) * 100;
+                    return `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-medium text-gray-900">${supply.name}</span>
+                                <span class="text-lg font-bold ${percentage < 20 ? 'text-red-600' : percentage < 50 ? 'text-yellow-600' : 'text-green-600'}">${percentage.toFixed(0)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="h-3 rounded-full transition-all ${getSupplyColor(percentage, supply.name)}" style="width: ${percentage}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Current: ${supply.current} / Max: ${supply.max}</p>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                suppliesList.innerHTML = '<p class="text-gray-500 text-center py-8">No toner/ink supply information available</p>';
+            }
+
+            // Maintenance tab
+            const maintenanceItems = filterMaintenanceItems(printer.supplies);
+            const maintenanceList = document.getElementById('maintenance-list');
+            if (maintenanceItems.length > 0) {
+                maintenanceList.innerHTML = maintenanceItems.map(item => {
+                    const percentage = (item.current / item.max) * 100;
+                    const statusColor = percentage < 20 ? 'border-red-300 bg-red-50' : 
+                                        percentage < 50 ? 'border-yellow-300 bg-yellow-50' : 
+                                        'border-green-300 bg-green-50';
+                    const textColor = percentage < 20 ? 'text-red-700' : 
+                                      percentage < 50 ? 'text-yellow-700' : 
+                                      'text-green-700';
+                    return `
+                        <div class="border rounded-lg p-4 ${statusColor}">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-medium text-gray-900">${item.name}</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Remaining life</p>
+                                </div>
+                                <span class="text-2xl font-bold ${textColor}">${percentage.toFixed(0)}%</span>
+                            </div>
+                            <div class="mt-3 w-full bg-white rounded-full h-2">
+                                <div class="h-2 rounded-full ${percentage < 20 ? 'bg-red-500' : percentage < 50 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                maintenanceList.innerHTML = '<p class="text-gray-500 text-center py-8 col-span-2">No maintenance component information available</p>';
+            }
+
+            // Alerts tab
+            const alerts = [];
+            
+            if (printer.status === 'offline') {
+                alerts.push({
+                    type: 'error',
+                    title: 'Printer Offline',
+                    message: 'This printer is not responding. Check the network connection and power status.'
+                });
+            }
+
+            const lowSupplies = tonerSupplies.filter(s => (s.current / s.max * 100) < 20);
+            if (lowSupplies.length > 0) {
+                alerts.push({
+                    type: 'warning',
+                    title: 'Low Supply Warning',
+                    message: `The following supplies are running low: ${lowSupplies.map(s => s.name).join(', ')}`
+                });
+            }
+
+            const lowMaintenance = maintenanceItems.filter(s => (s.current / s.max * 100) < 20);
+            if (lowMaintenance.length > 0) {
+                alerts.push({
+                    type: 'info',
+                    title: 'Maintenance Required',
+                    message: `The following components need attention: ${lowMaintenance.map(s => s.name).join(', ')}`
+                });
+            }
+
+            const alertsList = document.getElementById('alerts-list');
+            const alertCount = document.getElementById('alert-count');
+            
+            if (alerts.length > 0) {
+                alertCount.textContent = alerts.length;
+                alertCount.classList.remove('hidden');
+                
+                alertsList.innerHTML = alerts.map(alert => {
+                    const styles = {
+                        error: 'bg-red-50 border-red-200 text-red-700',
+                        warning: 'bg-yellow-50 border-yellow-200 text-yellow-700',
+                        info: 'bg-blue-50 border-blue-200 text-blue-700'
+                    };
+                    const icons = {
+                        error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+                        warning: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>',
+                        info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                    };
+                    return `
+                        <div class="flex items-start gap-3 p-4 border rounded-lg ${styles[alert.type]}">
+                            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                ${icons[alert.type]}
+                            </svg>
+                            <div>
+                                <h4 class="font-semibold">${alert.title}</h4>
+                                <p class="text-sm mt-1">${alert.message}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                alertCount.classList.add('hidden');
+                alertsList.innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-gray-500">No alerts or warnings</p>
+                        <p class="text-gray-400 text-sm">This printer is operating normally</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        printerIp = getPrinterIpFromURL();
+        if (printerIp) {
+            fetchPrinter();
+        } else {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('error-state').classList.remove('hidden');
+            document.getElementById('error-message').textContent = 'No printer IP specified';
+        }
+    </script>
+</body>
+</html>
