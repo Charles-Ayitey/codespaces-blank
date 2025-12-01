@@ -39,7 +39,7 @@
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-lg shadow p-6">
+                <a href="printers-detail.html?filter=all" class="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:scale-105 transition-all cursor-pointer">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-sm">Total Printers</p>
@@ -49,8 +49,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                         </svg>
                     </div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6">
+                    <p class="text-xs text-blue-600 mt-2">Click to view all →</p>
+                </a>
+                <a href="printers-detail.html?filter=active" class="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:scale-105 transition-all cursor-pointer">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-sm">Active</p>
@@ -60,8 +61,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6">
+                    <p class="text-xs text-green-600 mt-2">Click to view active →</p>
+                </a>
+                <a href="printers-detail.html?filter=offline" class="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:scale-105 transition-all cursor-pointer">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-sm">Offline</p>
@@ -71,8 +73,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
                     </div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6">
+                    <p class="text-xs text-red-600 mt-2">Click to view offline →</p>
+                </a>
+                <a href="printers-detail.html?filter=low-supplies" class="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:scale-105 transition-all cursor-pointer">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-sm">Low Supplies</p>
@@ -82,7 +85,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                         </svg>
                     </div>
-                </div>
+                    <p class="text-xs text-yellow-600 mt-2">Click to view low supplies →</p>
+                </a>
             </div>
 
             <!-- Controls -->
@@ -371,6 +375,26 @@
             });
         }
 
+        // Get other relevant info (maintenance items, drums, etc.) - shown without progress bars
+        function getMaintenanceInfo(supplies) {
+            if (!supplies || !Array.isArray(supplies)) return [];
+            
+            return supplies.filter(supply => {
+                if (!supply.name || supply.name.trim() === '') return false;
+                if (!supply.max || supply.max <= 0) return false;
+                
+                const name = supply.name.trim().toLowerCase();
+                if (/^\d+$/.test(name)) return false;
+                
+                const percentage = (supply.current / supply.max) * 100;
+                if (percentage < 0 || percentage > 100) return false;
+                
+                // Include maintenance items, drums, etc.
+                const maintenanceKeywords = ['drum', 'fuser', 'belt', 'maintenance', 'kit', 'waste', 'transfer', 'roller'];
+                return maintenanceKeywords.some(keyword => name.includes(keyword));
+            });
+        }
+
         // Update stats
         function updateStats() {
             const total = printers.length;
@@ -486,7 +510,7 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                                 </svg>
-                                Supply Levels
+                                Toner / Ink Levels
                             </h4>
                             ${(() => {
                                 const validSupplies = filterSupplies(printer.supplies);
@@ -510,10 +534,80 @@
                                         </div>
                                     `;
                                 } else {
-                                    return '<p class="text-sm text-gray-500 italic">No supply information available</p>';
+                                    return '<p class="text-sm text-gray-500 italic">No toner/ink information available</p>';
                                 }
                             })()}
                         </div>
+
+                        <!-- Maintenance Info (shown as compact badges) -->
+                        ${(() => {
+                            const maintenanceItems = getMaintenanceInfo(printer.supplies);
+                            if (maintenanceItems.length > 0) {
+                                return `
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            </svg>
+                                            Maintenance Components
+                                        </h4>
+                                        <div class="flex flex-wrap gap-2">
+                                            ${maintenanceItems.map(item => {
+                                                const percentage = (item.current / item.max) * 100;
+                                                const colorClass = percentage < 20 ? 'bg-red-100 text-red-700 border-red-200' : percentage < 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-green-100 text-green-700 border-green-200';
+                                                return `
+                                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs ${colorClass}" title="${item.name}">
+                                                        <span class="truncate max-w-20">${item.name.replace(/cartridge|toner|unit/gi, '').trim()}</span>
+                                                        <span class="font-semibold">${percentage.toFixed(0)}%</span>
+                                                    </span>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            return '';
+                        })()}
+
+                        <!-- Alerts Section -->
+                        ${(() => {
+                            const alerts = [];
+                            
+                            // Offline alert
+                            if (printer.status === 'offline') {
+                                alerts.push(`
+                                    <div class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-red-700">
+                                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                        </svg>
+                                        <span class="text-xs">Printer offline - check connection</span>
+                                    </div>
+                                `);
+                            }
+                            
+                            // Low supply alert
+                            const lowSupplies = filterSupplies(printer.supplies).filter(s => (s.current / s.max * 100) < 20);
+                            if (lowSupplies.length > 0) {
+                                alerts.push(`
+                                    <div class="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">
+                                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                        </svg>
+                                        <span class="text-xs">Low: ${lowSupplies.map(s => s.name).join(', ')}</span>
+                                    </div>
+                                `);
+                            }
+                            
+                            if (alerts.length > 0) {
+                                return `
+                                    <div class="space-y-2">
+                                        ${alerts.join('')}
+                                    </div>
+                                `;
+                            }
+                            return '';
+                        })()}
 
                         <!-- Footer -->
                         <div class="pt-2 border-t border-gray-200 flex justify-between items-center">
