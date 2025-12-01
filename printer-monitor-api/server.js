@@ -18,6 +18,95 @@ app.use(express.json());
 const printers = new Map();
 let scanStatus = { scanning: false, lastScan: null };
 
+// Historical data storage
+const history = {
+  // Stores snapshots: { timestamp, printers: [{ ip, totalPages, supplies: [{name, percentage}] }] }
+  snapshots: [],
+  // Daily aggregates: { date: { totalPages: {ip: pages}, avgSupplyLevels: {ip: {supply: avg}} } }
+  daily: new Map(),
+  // Configuration
+  maxSnapshots: 1440, // Keep 24 hours of minute-by-minute data
+  snapshotInterval: 60000 // 1 minute
+};
+
+// Record a history snapshot
+function recordSnapshot() {
+  const printerList = Array.from(printers.values());
+  if (printerList.length === 0) return;
+
+  const snapshot = {
+    timestamp: new Date().toISOString(),
+    printers: printerList.map(p => ({
+      ip: p.ip,
+      name: p.name,
+      status: p.status,
+      online: p.online,
+      totalPages: p.totalPages,
+      supplies: p.supplies.map(s => ({
+        name: s.name,
+        percentage: s.max > 0 ? Math.round((s.current / s.max) * 100) : 0
+      }))
+    }))
+  };
+
+  history.snapshots.push(snapshot);
+
+  // Keep only last maxSnapshots
+  if (history.snapshots.length > history.maxSnapshots) {
+    history.snapshots.shift();
+  }
+
+  // Update daily aggregates
+  const today = new Date().toISOString().split('T')[0];
+  if (!history.daily.has(today)) {
+    history.daily.set(today, {
+      pageCountStart: {},
+      pageCountEnd: {},
+      supplyLevels: {},
+      uptimeMinutes: {},
+      totalMinutes: {}
+    });
+  }
+
+  const dailyData = history.daily.get(today);
+  for (const printer of printerList) {
+    // Track page counts
+    if (!dailyData.pageCountStart[printer.ip]) {
+      dailyData.pageCountStart[printer.ip] = printer.totalPages;
+    }
+    dailyData.pageCountEnd[printer.ip] = printer.totalPages;
+
+    // Track uptime
+    if (!dailyData.totalMinutes[printer.ip]) {
+      dailyData.totalMinutes[printer.ip] = 0;
+      dailyData.uptimeMinutes[printer.ip] = 0;
+    }
+    dailyData.totalMinutes[printer.ip]++;
+    if (printer.online) {
+      dailyData.uptimeMinutes[printer.ip]++;
+    }
+
+    // Track supply levels (store latest)
+    dailyData.supplyLevels[printer.ip] = printer.supplies.map(s => ({
+      name: s.name,
+      percentage: s.max > 0 ? Math.round((s.current / s.max) * 100) : 0
+    }));
+  }
+
+  // Clean up old daily data (keep 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+  for (const [date] of history.daily) {
+    if (date < cutoffDate) {
+      history.daily.delete(date);
+    }
+  }
+}
+
+// Start history recording
+setInterval(recordSnapshot, history.snapshotInterval);
+
 // Standard Printer MIB OIDs
 const PRINTER_OIDS = {
   description: '1.3.6.1.2.1.1.1.0',
@@ -345,6 +434,170 @@ app.get('/api/health', (req, res) => {
     status: 'healthy',
     printers: printers.size,
     timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================
+// Historical Data API Endpoints
+// ============================================
+
+// Get recent snapshots (last N minutes)
+app.get('/api/history/snapshots', (req, res) => {
+  const minutes = parseInt(req.query.minutes) || 60; // Default to last hour
+  const limit = Math.min(minutes, history.maxSnapshots);
+  const snapshots = history.snapshots.slice(-limit);
+  
+  res.json({
+    count: snapshots.length,
+    interval: history.snapshotInterval / 1000, // in seconds
+    snapshots: snapshots
+  });
+});
+
+// Get daily aggregates
+app.get('/api/history/daily', (req, res) => {
+  const days = parseInt(req.query.days) || 7; // Default to last week
+  const dailyData = [];
+  
+  // Get sorted dates
+  const dates = Array.from(history.daily.keys()).sort().slice(-days);
+  
+  for (const date of dates) {
+    const data = history.daily.get(date);
+    const summary = {
+      date: date,
+      printers: {}
+    };
+    
+    // Calculate pages printed per printer
+    for (const ip in data.pageCountEnd) {
+      const pagesStart = data.pageCountStart[ip] || 0;
+      const pagesEnd = data.pageCountEnd[ip] || 0;
+      const uptime = data.uptimeMinutes[ip] || 0;
+      const total = data.totalMinutes[ip] || 1;
+      
+      summary.printers[ip] = {
+        pagesPrinted: pagesEnd - pagesStart,
+        totalPages: pagesEnd,
+        uptimePercent: Math.round((uptime / total) * 100),
+        supplyLevels: data.supplyLevels[ip] || []
+      };
+    }
+    
+    dailyData.push(summary);
+  }
+  
+  res.json({
+    days: dailyData.length,
+    data: dailyData
+  });
+});
+
+// Get history for a specific printer
+app.get('/api/history/printer/:ip', (req, res) => {
+  const ip = req.params.ip;
+  const minutes = parseInt(req.query.minutes) || 60;
+  
+  // Filter snapshots for this printer
+  const printerHistory = history.snapshots.slice(-minutes).map(snapshot => {
+    const printerData = snapshot.printers.find(p => p.ip === ip);
+    return printerData ? {
+      timestamp: snapshot.timestamp,
+      ...printerData
+    } : null;
+  }).filter(Boolean);
+  
+  // Get daily history for this printer
+  const dailyHistory = [];
+  const dates = Array.from(history.daily.keys()).sort();
+  
+  for (const date of dates) {
+    const data = history.daily.get(date);
+    if (data.pageCountEnd[ip]) {
+      dailyHistory.push({
+        date: date,
+        pagesPrinted: (data.pageCountEnd[ip] || 0) - (data.pageCountStart[ip] || 0),
+        totalPages: data.pageCountEnd[ip],
+        uptimePercent: Math.round(((data.uptimeMinutes[ip] || 0) / (data.totalMinutes[ip] || 1)) * 100),
+        supplyLevels: data.supplyLevels[ip] || []
+      });
+    }
+  }
+  
+  res.json({
+    ip: ip,
+    recentHistory: printerHistory,
+    dailyHistory: dailyHistory
+  });
+});
+
+// Get analytics summary
+app.get('/api/history/analytics', (req, res) => {
+  const printerList = Array.from(printers.values());
+  const dates = Array.from(history.daily.keys()).sort();
+  
+  // Calculate totals
+  let totalPagesAllTime = 0;
+  let totalPagesToday = 0;
+  const today = new Date().toISOString().split('T')[0];
+  
+  const printerStats = {};
+  
+  for (const date of dates) {
+    const data = history.daily.get(date);
+    for (const ip in data.pageCountEnd) {
+      const printed = (data.pageCountEnd[ip] || 0) - (data.pageCountStart[ip] || 0);
+      totalPagesAllTime += printed;
+      
+      if (date === today) {
+        totalPagesToday += printed;
+      }
+      
+      if (!printerStats[ip]) {
+        printerStats[ip] = { totalPrinted: 0, daysActive: 0 };
+      }
+      printerStats[ip].totalPrinted += printed;
+      printerStats[ip].daysActive++;
+    }
+  }
+  
+  // Find top printers
+  const topPrinters = Object.entries(printerStats)
+    .map(([ip, stats]) => ({
+      ip,
+      name: printers.get(ip)?.name || ip,
+      totalPrinted: stats.totalPrinted,
+      avgPerDay: Math.round(stats.totalPrinted / stats.daysActive)
+    }))
+    .sort((a, b) => b.totalPrinted - a.totalPrinted)
+    .slice(0, 5);
+  
+  // Supply trends (low supplies)
+  const lowSupplyAlerts = [];
+  for (const printer of printerList) {
+    for (const supply of printer.supplies) {
+      const percentage = supply.max > 0 ? (supply.current / supply.max) * 100 : 0;
+      if (percentage < 20 && percentage >= 0) {
+        lowSupplyAlerts.push({
+          ip: printer.ip,
+          printerName: printer.name,
+          supplyName: supply.name,
+          percentage: Math.round(percentage)
+        });
+      }
+    }
+  }
+  
+  res.json({
+    summary: {
+      totalPagesAllTime: totalPagesAllTime,
+      totalPagesToday: totalPagesToday,
+      daysTracked: dates.length,
+      printersMonitored: printerList.length
+    },
+    topPrinters: topPrinters,
+    lowSupplyAlerts: lowSupplyAlerts.sort((a, b) => a.percentage - b.percentage),
+    lastUpdated: new Date().toISOString()
   });
 });
 
