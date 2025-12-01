@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen p-6">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Printer Dashboard</h1>
+                <p class="text-gray-600">Monitor and manage all network printers</p>
+            </div>
+
+            <!-- Error Alert -->
+            <div id="error-alert" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div class="flex items-start gap-3">
+                    <svg class="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-red-900">Connection Error</h3>
+                        <p id="error-message" class="text-sm text-red-700"></p>
+                    </div>
+                    <button onclick="hideError()" class="text-red-600 hover:text-red-800 text-xl">×</button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Printers</p>
+                            <p id="stat-total" class="text-3xl font-bold text-gray-900">0</p>
+                        </div>
+                        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Active</p>
+                            <p id="stat-active" class="text-3xl font-bold text-green-600">0</p>
+                        </div>
+                        <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Offline</p>
+                            <p id="stat-offline" class="text-3xl font-bold text-red-600">0</p>
+                        </div>
+                        <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Low Supplies</p>
+                            <p id="stat-low" class="text-3xl font-bold text-yellow-600">0</p>
+                        </div>
+                        <svg class="w-10 h-10 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="setFilter('all')" id="filter-all" class="px-4 py-2 rounded-lg bg-blue-600 text-white">
+                            All
+                        </button>
+                        <button onclick="setFilter('active')" id="filter-active" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700">
+                            Active
+                        </button>
+                        <button onclick="setFilter('issues')" id="filter-issues" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700">
+                            Issues
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="refreshPrinters()" id="refresh-btn" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button onclick="scanNetwork()" id="scan-btn" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <span id="scan-text">Scan Network</span>
+                        </button>
+                        <button onclick="toggleAddPrinter()" class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Printer
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add Printer Form -->
+                <div id="add-printer-form" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold mb-2">Add Printer Manually</h3>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="printer-ip" placeholder="Enter IP address (e.g., 192.168.1.100)" class="flex-1 px-3 py-2 border rounded-lg" onkeypress="if(event.key==='Enter') addPrinter()">
+                        <button onclick="addPrinter()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            Add
+                        </button>
+                        <button onclick="toggleAddPrinter()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                            Cancel
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-600">Make sure SNMP is enabled on the printer (community string: public)</p>
+                </div>
+            </div>
+
+            <!-- Printers Grid -->
+            <div id="printers-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Printers will be inserted here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden text-center py-12 bg-white rounded-lg shadow">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Printers Found</h3>
+                <p class="text-gray-500 mb-4">Add printers manually or scan your network to get started.</p>
+                <button onclick="toggleAddPrinter()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Add Your First Printer
+                </button>
+            </div>
+
+            <!-- Info Box -->
+            <div class="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h4 class="font-semibold text-green-900 mb-2">✓ Standalone Dashboard</h4>
+                <p class="text-sm text-green-800">
+                    This dashboard connects to your Node.js API server on localhost:5000. Make sure the server is running with: <code class="bg-green-100 px-2 py-1 rounded">node server.js</code>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let printers = [];
+        let currentFilter = 'all';
+        let scanning = false;
+
+        // Fetch printers from API
+        async function fetchPrinters() {
+            try {
+                const response = await fetch(`${API_BASE}/printers`);
+                if (!response.ok) throw new Error('Failed to fetch printers');
+                printers = await response.json();
+                hideError();
+                renderPrinters();
+                updateStats();
+            } catch (err) {
+                showError('Cannot connect to API server. Make sure it is running on port 5000.');
+                console.error('Fetch error:', err);
+            }
+        }
+
+        // Refresh printers
+        async function refreshPrinters() {
+            const btn = document.getElementById('refresh-btn');
+            const icon = document.getElementById('refresh-icon');
+            btn.disabled = true;
+            icon.classList.add('animate-spin');
+            
+            try {
+                const response = await fetch(`${API_BASE}/printers/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('Refresh failed');
+                await fetchPrinters();
+            } catch (err) {
+                showError('Failed to refresh printers');
+            } finally {
+                btn.disabled = false;
+                icon.classList.remove('animate-spin');
+            }
+        }
+
+        // Scan network
+        async function scanNetwork() {
+            if (scanning) return;
+            
+            scanning = true;
+            const btn = document.getElementById('scan-btn');
+            const text = document.getElementById('scan-text');
+            btn.disabled = true;
+            text.textContent = 'Scanning...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ network_prefix: '10.233.6' })
+                });
+                if (!response.ok) throw new Error('Scan failed');
+                
+                // Poll for completion
+                const checkInterval = setInterval(async () => {
+                    const statusRes = await fetch(`${API_BASE}/scan/status`);
+                    const status = await statusRes.json();
+                    if (!status.scanning) {
+                        clearInterval(checkInterval);
+                        scanning = false;
+                        btn.disabled = false;
+                        text.textContent = 'Scan Network';
+                        await fetchPrinters();
+                    }
+                }, 2000);
+            } catch (err) {
+                showError('Failed to start network scan');
+                scanning = false;
+                btn.disabled = false;
+                text.textContent = 'Scan Network';
+            }
+        }
+
+        // Add printer
+        async function addPrinter() {
+            const ipInput = document.getElementById('printer-ip');
+            const ip = ipInput.value.trim();
+            
+            if (!ip) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/printers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                if (!response.ok) throw new Error('Failed to add printer');
+                await fetchPrinters();
+                ipInput.value = '';
+                toggleAddPrinter();
+            } catch (err) {
+                showError('Failed to add printer. Check if IP is correct and SNMP is enabled.');
+            }
+        }
+
+        // Remove printer
+        async function removePrinter(ip) {
+            if (!confirm(`Remove printer ${ip}?`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/printers/${ip}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('Failed to remove printer');
+                await fetchPrinters();
+            } catch (err) {
+                showError('Failed to remove printer');
+            }
+        }
+
+        // Toggle add printer form
+        function toggleAddPrinter() {
+            const form = document.getElementById('add-printer-form');
+            form.classList.toggle('hidden');
+        }
+
+        // Set filter
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+                btn.className = 'px-4 py-2 rounded-lg bg-gray-100 text-gray-700';
+            });
+            document.getElementById(`filter-${filter}`).className = 'px-4 py-2 rounded-lg bg-blue-600 text-white';
+            renderPrinters();
+        }
+
+        // Show/hide error
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error-alert').classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('error-alert').classList.add('hidden');
+        }
+
+        // Get status color
+        function getStatusColor(status) {
+            const colors = {
+                'idle': 'text-green-600 bg-green-100',
+                'printing': 'text-blue-600 bg-blue-100',
+                'offline': 'text-red-600 bg-red-100',
+                'warmup': 'text-yellow-600 bg-yellow-100'
+            };
+            return colors[status] || 'text-gray-600 bg-gray-100';
+        }
+
+        // Get supply color
+        function getSupplyColor(percentage) {
+            if (percentage > 50) return 'bg-green-500';
+            if (percentage > 20) return 'bg-yellow-500';
+            return 'bg-red-500';
+        }
+
+        // Update stats
+        function updateStats() {
+            const total = printers.length;
+            const active = printers.filter(p => ['idle', 'printing'].includes(p.status)).length;
+            const offline = printers.filter(p => p.status === 'offline').length;
+            let lowSupplies = 0;
+            
+            printers.forEach(p => {
+                if (p.supplies.some(s => (s.current / s.max * 100) < 20)) {
+                    lowSupplies++;
+                }
+            });
+            
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-active').textContent = active;
+            document.getElementById('stat-offline').textContent = offline;
+            document.getElementById('stat-low').textContent = lowSupplies;
+        }
+
+        // Render printers
+        function renderPrinters() {
+            const filtered = printers.filter(p => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'active') return ['idle', 'printing'].includes(p.status);
+                if (currentFilter === 'issues') return p.status === 'offline' || p.supplies.some(s => (s.current / s.max * 100) < 20);
+                return true;
+            });
+
+            const grid = document.getElementById('printers-grid');
+            const emptyState = document.getElementById('empty-state');
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = filtered.map(printer => `
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-8 h-8 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                </svg>
+                                <div>
+                                    <h3 class="font-bold text-lg">${printer.name || 'Unknown Printer'}</h3>
+                                    <p class="text-blue-200 text-xs mt-1">${printer.ip}</p>
+                                </div>
+                            </div>
+                            <button onclick="removePrinter('${printer.ip}')" class="p-1 hover:bg-blue-800 rounded" title="Remove printer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <!-- Device Information Group -->
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                                </svg>
+                                Device Information
+                            </h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-gray-500 text-xs">Model</p>
+                                    <p class="font-medium text-sm text-gray-900">${printer.model || 'Unknown'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Serial Number</p>
+                                    <p class="font-mono text-sm text-gray-900">${printer.serial || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status & Usage Group -->
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                Status & Usage
+                            </h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-gray-500 text-xs mb-1">Current Status</p>
+                                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full ${getStatusColor(printer.status)}">
+                                        <span class="w-2 h-2 rounded-full ${printer.status === 'idle' ? 'bg-green-500' : printer.status === 'printing' ? 'bg-blue-500' : printer.status === 'offline' ? 'bg-red-500' : 'bg-yellow-500'}"></span>
+                                        <span class="font-semibold capitalize text-sm">${printer.status}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs mb-1">Total Pages Printed</p>
+                                    <p class="font-bold text-xl text-gray-900">${printer.totalPages.toLocaleString()}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Supplies Group -->
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                </svg>
+                                Supply Levels
+                            </h4>
+                            ${printer.supplies.length > 0 ? `
+                                <div class="space-y-2">
+                                    ${printer.supplies.map(supply => {
+                                        const percentage = (supply.current / supply.max) * 100;
+                                        return `
+                                            <div>
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-xs text-gray-700">${supply.name}</span>
+                                                    <span class="text-xs font-semibold ${percentage < 20 ? 'text-red-600' : percentage < 50 ? 'text-yellow-600' : 'text-green-600'}">${percentage.toFixed(0)}%</span>
+                                                </div>
+                                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                                    <div class="h-2 rounded-full transition-all ${getSupplyColor(percentage)}" style="width: ${percentage}%"></div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : '<p class="text-sm text-gray-500 italic">No supply information available</p>'}
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="pt-2 border-t border-gray-200 flex justify-between items-center">
+                            <p class="text-xs text-gray-400">Last updated: ${new Date(printer.lastUpdate).toLocaleTimeString()}</p>
+                            <span class="inline-flex items-center gap-1 text-xs ${printer.online ? 'text-green-600' : 'text-red-600'}">
+                                <span class="w-2 h-2 rounded-full ${printer.online ? 'bg-green-500' : 'bg-red-500'}"></span>
+                                ${printer.online ? 'Online' : 'Offline'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize
+        fetchPrinters();
+        setInterval(fetchPrinters, 30000); // Auto-refresh every 30 seconds
+    </script>
+</body>
+</html>
