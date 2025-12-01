@@ -289,7 +289,7 @@
         const alertsList = document.getElementById('alertsList');
         if (data.lowSupplyAlerts.length > 0) {
           alertsList.innerHTML = data.lowSupplyAlerts.map(alert => `
-            <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+            <a href="printer-analytics.html?ip=${alert.ip}" class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors">
               <div>
                 <p class="font-medium text-gray-800">${alert.printerName || alert.ip}</p>
                 <p class="text-sm text-gray-600">${alert.supplyName}</p>
@@ -297,7 +297,7 @@
               <div class="px-3 py-1 rounded-full text-sm font-medium ${alert.percentage < 10 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}">
                 ${alert.percentage}%
               </div>
-            </div>
+            </a>
           `).join('');
         } else {
           alertsList.innerHTML = '<p class="text-gray-500 text-center py-4">✅ No low supply alerts</p>';
@@ -307,8 +307,8 @@
         const usageTable = document.getElementById('usageTable');
         if (data.topPrinters.length > 0) {
           usageTable.innerHTML = data.topPrinters.map(p => `
-            <tr class="border-b hover:bg-gray-50">
-              <td class="py-2">${p.name}</td>
+            <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location.href='printer-analytics.html?ip=${p.ip}'">
+              <td class="py-2 text-blue-600 hover:underline">${p.name}</td>
               <td class="text-right py-2 font-medium">${p.totalPrinted.toLocaleString()}</td>
               <td class="text-right py-2 text-gray-600">${p.avgPerDay.toLocaleString()}</td>
             </tr>

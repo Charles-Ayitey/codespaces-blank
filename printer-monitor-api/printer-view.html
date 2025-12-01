@@ -32,6 +32,12 @@
                     <h1 id="printer-name" class="text-2xl font-bold text-gray-900">Loading...</h1>
                     <p id="printer-ip" class="text-gray-500 font-mono text-sm"></p>
                 </div>
+                <a id="analytics-link" href="#" class="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors shadow">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Analytics
+                </a>
                 <div id="status-badge" class="px-4 py-2 rounded-full">
                     <!-- Status will be inserted here -->
                 </div>
@@ -340,6 +346,7 @@
             // Header
             document.getElementById('printer-name').textContent = printer.name || 'Unknown Printer';
             document.getElementById('printer-ip').textContent = printer.ip;
+            document.getElementById('analytics-link').href = `printer-analytics.html?ip=${printer.ip}`;
             document.title = `${printer.name || printer.ip} - Printer Details`;
 
             // Status badge
