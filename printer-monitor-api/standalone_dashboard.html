@@ -319,11 +319,56 @@
             return colors[status] || 'text-gray-600 bg-gray-100';
         }
 
-        // Get supply color
-        function getSupplyColor(percentage) {
+        // Get supply color based on toner/supply name
+        function getSupplyColor(percentage, name = '') {
+            const nameLower = name.toLowerCase();
+            
+            // Match toner colors by name
+            if (nameLower.includes('cyan')) return 'bg-cyan-500';
+            if (nameLower.includes('magenta') || nameLower.includes('pink')) return 'bg-pink-500';
+            if (nameLower.includes('yellow')) return 'bg-yellow-400';
+            if (nameLower.includes('black') || nameLower.includes('noir')) return 'bg-gray-800';
+            if (nameLower.includes('photo') || nameLower.includes('light')) return 'bg-gray-400';
+            
+            // Default color based on level for other supplies
             if (percentage > 50) return 'bg-green-500';
             if (percentage > 20) return 'bg-yellow-500';
             return 'bg-red-500';
+        }
+
+        // Filter and validate supplies - remove invalid/irrelevant entries
+        // Only returns consumables that make sense to show with percentage levels
+        function filterSupplies(supplies) {
+            if (!supplies || !Array.isArray(supplies)) return [];
+            
+            return supplies.filter(supply => {
+                // Must have valid max value greater than 0
+                if (!supply.max || supply.max <= 0) return false;
+                
+                // Calculate percentage
+                const percentage = (supply.current / supply.max) * 100;
+                
+                // Filter out invalid percentages (negative or over 100%)
+                if (percentage < 0 || percentage > 100) return false;
+                
+                // Filter out supplies with no meaningful name
+                if (!supply.name || supply.name.trim() === '') return false;
+                
+                // Filter out entries that are just numbers or codes
+                const name = supply.name.trim().toLowerCase();
+                if (/^\d+$/.test(name)) return false;
+                
+                // Only show toner/ink cartridges - these are the consumables with meaningful percentage levels
+                const tonerInkKeywords = ['toner', 'ink', 'cyan', 'magenta', 'yellow', 'black', 'cartridge', 'color'];
+                const isTonerOrInk = tonerInkKeywords.some(keyword => name.includes(keyword));
+                
+                // Exclude maintenance/non-consumable items that don't need percentage tracking
+                const excludeKeywords = ['drum', 'fuser', 'belt', 'maintenance', 'kit', 'waste', 'transfer', 'roller', 'unit', 'life'];
+                const isExcluded = excludeKeywords.some(keyword => name.includes(keyword));
+                
+                // Only include if it's toner/ink and not an excluded maintenance item
+                return isTonerOrInk && !isExcluded;
+            });
         }
 
         // Update stats
@@ -334,7 +379,8 @@
             let lowSupplies = 0;
             
             printers.forEach(p => {
-                if (p.supplies.some(s => (s.current / s.max * 100) < 20)) {
+                const validSupplies = filterSupplies(p.supplies);
+                if (validSupplies.some(s => (s.current / s.max * 100) < 20)) {
                     lowSupplies++;
                 }
             });
@@ -350,7 +396,10 @@
             const filtered = printers.filter(p => {
                 if (currentFilter === 'all') return true;
                 if (currentFilter === 'active') return ['idle', 'printing'].includes(p.status);
-                if (currentFilter === 'issues') return p.status === 'offline' || p.supplies.some(s => (s.current / s.max * 100) < 20);
+                if (currentFilter === 'issues') {
+                    const validSupplies = filterSupplies(p.supplies);
+                    return p.status === 'offline' || validSupplies.some(s => (s.current / s.max * 100) < 20);
+                }
                 return true;
             });
 
@@ -374,7 +423,6 @@
                                 </svg>
                                 <div>
                                     <h3 class="font-bold text-lg">${printer.name || 'Unknown Printer'}</h3>
-                                    <p class="text-blue-200 text-xs mt-1">${printer.ip}</p>
                                 </div>
                             </div>
                             <button onclick="removePrinter('${printer.ip}')" class="p-1 hover:bg-blue-800 rounded" title="Remove printer">
@@ -393,10 +441,14 @@
                                 </svg>
                                 Device Information
                             </h4>
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <p class="text-gray-500 text-xs">IP Address</p>
+                                    <p class="font-mono text-sm text-gray-900">${printer.ip}</p>
+                                </div>
                                 <div>
                                     <p class="text-gray-500 text-xs">Model</p>
-                                    <p class="font-medium text-sm text-gray-900">${printer.model || 'Unknown'}</p>
+                                    <p class="font-medium text-sm text-gray-900 truncate" title="${printer.model || 'Unknown'}">${printer.model || 'Unknown'}</p>
                                 </div>
                                 <div>
                                     <p class="text-gray-500 text-xs">Serial Number</p>
@@ -436,24 +488,31 @@
                                 </svg>
                                 Supply Levels
                             </h4>
-                            ${printer.supplies.length > 0 ? `
-                                <div class="space-y-2">
-                                    ${printer.supplies.map(supply => {
-                                        const percentage = (supply.current / supply.max) * 100;
-                                        return `
-                                            <div>
-                                                <div class="flex justify-between items-center mb-1">
-                                                    <span class="text-xs text-gray-700">${supply.name}</span>
-                                                    <span class="text-xs font-semibold ${percentage < 20 ? 'text-red-600' : percentage < 50 ? 'text-yellow-600' : 'text-green-600'}">${percentage.toFixed(0)}%</span>
-                                                </div>
-                                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                                    <div class="h-2 rounded-full transition-all ${getSupplyColor(percentage)}" style="width: ${percentage}%"></div>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            ` : '<p class="text-sm text-gray-500 italic">No supply information available</p>'}
+                            ${(() => {
+                                const validSupplies = filterSupplies(printer.supplies);
+                                if (validSupplies.length > 0) {
+                                    return `
+                                        <div class="space-y-2">
+                                            ${validSupplies.map(supply => {
+                                                const percentage = (supply.current / supply.max) * 100;
+                                                return `
+                                                    <div>
+                                                        <div class="flex justify-between items-center mb-1">
+                                                            <span class="text-xs text-gray-700">${supply.name}</span>
+                                                            <span class="text-xs font-semibold ${percentage < 20 ? 'text-red-600' : percentage < 50 ? 'text-yellow-600' : 'text-green-600'}">${percentage.toFixed(0)}%</span>
+                                                        </div>
+                                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                                            <div class="h-2 rounded-full transition-all ${getSupplyColor(percentage, supply.name)}" style="width: ${percentage}%"></div>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    `;
+                                } else {
+                                    return '<p class="text-sm text-gray-500 italic">No supply information available</p>';
+                                }
+                            })()}
                         </div>
 
                         <!-- Footer -->
