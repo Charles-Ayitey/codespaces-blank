@@ -413,8 +413,8 @@
         // Update stats
         function updateStats() {
             const total = printers.length;
-            const active = printers.filter(p => ['idle', 'printing'].includes(p.status)).length;
-            const offline = printers.filter(p => p.status === 'offline').length;
+            const active = printers.filter(p => p.online === true).length;
+            const offline = printers.filter(p => !p.online || p.status === 'offline').length;
             let lowSupplies = 0;
             
             printers.forEach(p => {
@@ -434,7 +434,7 @@
         function renderPrinters() {
             const filtered = printers.filter(p => {
                 if (currentFilter === 'all') return true;
-                if (currentFilter === 'active') return ['idle', 'printing'].includes(p.status);
+                if (currentFilter === 'active') return p.online === true;
                 if (currentFilter === 'issues') {
                     const validSupplies = filterSupplies(p.supplies);
                     return p.status === 'offline' || validSupplies.some(s => (s.current / s.max * 100) < 20);

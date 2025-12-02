@@ -88,6 +88,20 @@
             <label for="email-secure" class="text-sm text-gray-700">Use SSL/TLS (port 465)</label>
           </div>
 
+          <!-- Gmail Help Box -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 class="font-medium text-blue-800 mb-2">📧 Gmail Setup Guide</h4>
+            <ol class="text-sm text-blue-700 list-decimal list-inside space-y-1">
+              <li>Host: <code class="bg-blue-100 px-1 rounded">smtp.gmail.com</code></li>
+              <li>Port: <code class="bg-blue-100 px-1 rounded">587</code> (leave SSL unchecked) or <code class="bg-blue-100 px-1 rounded">465</code> (check SSL)</li>
+              <li>Username: Your full Gmail address</li>
+              <li>Password: Use an <strong>App Password</strong> (not your regular password)</li>
+            </ol>
+            <p class="text-xs text-blue-600 mt-2">
+              To create an App Password: Google Account → Security → 2-Step Verification → App passwords
+            </p>
+          </div>
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
             <div id="recipients-list" class="space-y-2 mb-2"></div>
@@ -266,7 +280,9 @@
         document.getElementById('email-host').value = config.email?.host || '';
         document.getElementById('email-port').value = config.email?.port || 587;
         document.getElementById('email-user').value = config.email?.user || '';
-        document.getElementById('email-pass').value = config.email?.pass || '';
+        // Don't populate password with masked value - show placeholder if password exists
+        document.getElementById('email-pass').value = '';
+        document.getElementById('email-pass').placeholder = config.email?.pass ? '••••••••  (saved)' : 'Enter password';
         document.getElementById('email-secure').checked = config.email?.secure || false;
         renderRecipients();
         
@@ -415,6 +431,7 @@
 
     // Save settings
     async function saveSettings() {
+      const passwordField = document.getElementById('email-pass').value;
       const settings = {
         email: {
           enabled: document.getElementById('email-enabled').checked,
@@ -422,7 +439,8 @@
           port: parseInt(document.getElementById('email-port').value) || 587,
           secure: document.getElementById('email-secure').checked,
           user: document.getElementById('email-user').value,
-          pass: document.getElementById('email-pass').value,
+          // Only include password if user entered a new one, otherwise send null to preserve existing
+          pass: passwordField.trim() ? passwordField : null,
           recipients: config.email?.recipients || []
         },
         webhooks: config.webhooks || [],

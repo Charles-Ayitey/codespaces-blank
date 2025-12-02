@@ -158,23 +158,61 @@ function clearCooldown(cooldownKey) {
 
 // Send email notification
 async function sendEmailNotification(subject, message, alertType) {
-  if (!config.email.enabled || !config.email.host || !config.email.user) {
+  if (!config.email.enabled) {
+    console.log('Email notifications disabled');
+    return false;
+  }
+  if (!config.email.host) {
+    console.log('Email error: SMTP host not configured');
+    return false;
+  }
+  if (!config.email.user) {
+    console.log('Email error: Username not configured');
+    return false;
+  }
+  if (!config.email.pass) {
+    console.log('Email error: Password not configured');
     return false;
   }
   
   try {
-    const transporter = nodemailer.createTransport({
+    // Determine if this is Gmail
+    const isGmail = config.email.host.toLowerCase().includes('gmail');
+    const port = config.email.port || 587;
+    
+    // For Gmail: port 587 uses STARTTLS (secure: false), port 465 uses SSL (secure: true)
+    // For other providers, use the configured secure setting
+    const useSecure = port === 465 ? true : (config.email.secure || false);
+    
+    const transportConfig = {
       host: config.email.host,
-      port: config.email.port || 587,
-      secure: config.email.secure || false,
+      port: port,
+      secure: useSecure,
       auth: {
         user: config.email.user,
         pass: config.email.pass
       }
-    });
+    };
+    
+    // For Gmail with 2FA, we need specific settings
+    if (isGmail) {
+      transportConfig.service = 'gmail';
+      // Gmail requires TLS
+      transportConfig.tls = {
+        rejectUnauthorized: false
+      };
+    }
+    
+    const transporter = nodemailer.createTransport(transportConfig);
+    
+    // Verify connection before sending
+    await transporter.verify();
     
     const recipients = config.email.recipients.filter(r => r && r.includes('@'));
-    if (recipients.length === 0) return false;
+    if (recipients.length === 0) {
+      console.log('No valid email recipients configured');
+      return false;
+    }
     
     const emoji = alertType === 'critical-supply' ? '🚨' : 
                   alertType === 'offline' ? '❌' :
@@ -202,6 +240,7 @@ async function sendEmailNotification(subject, message, alertType) {
     return true;
   } catch (error) {
     console.error('Email send failed:', error.message);
+    console.error('Full error:', error);
     return false;
   }
 }
@@ -393,15 +432,27 @@ const PRINTER_OIDS = {
   sysLocation: '1.3.6.1.2.1.1.6.0',
   sysContact: '1.3.6.1.2.1.1.4.0',
   
-  // Printer Identity
+  // Printer Identity - Standard MIB
   serial: '1.3.6.1.2.1.43.5.1.1.17.1',
+  
+  // Alternative Serial OIDs (HP, Lexmark, etc.)
+  serialAlt1: '1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.3.0',  // HP specific
+  serialAlt2: '1.3.6.1.4.1.2699.1.2.1.2.1.1.3.1',    // PWG Printer MIB
+  serialAlt3: '1.3.6.1.2.1.43.5.1.1.17',             // Without instance
   
   // Status
   status: '1.3.6.1.2.1.25.3.5.1.1.1',
   deviceStatus: '1.3.6.1.2.1.43.16.5.1.2.1.1',
   
+  // Alternative Status OIDs
+  statusAlt1: '1.3.6.1.4.1.11.2.3.9.1.1.3.0',        // HP specific
+  
   // Page Counts
   totalPages: '1.3.6.1.2.1.43.10.2.1.4.1.1',
+  
+  // Alternative Page Count OIDs
+  totalPagesAlt1: '1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.5.0',  // HP specific
+  totalPagesAlt2: '1.3.6.1.2.1.43.10.2.1.4.1',             // Without instance
   
   // Supplies (prtMarkerSuppliesTable)
   supplyDesc: '1.3.6.1.2.1.43.11.1.1.6.1',
@@ -453,9 +504,9 @@ const ALERT_SEVERITY = {
 /**
  * Perform SNMP GET request
  */
-function snmpGet(ip, oid, community = 'public') {
+function snmpGet(ip, oid, community = 'public', timeout = 5000) {
   return new Promise((resolve, reject) => {
-    const session = snmp.createSession(ip, community, { timeout: 2000, retries: 1 });
+    const session = snmp.createSession(ip, community, { timeout: timeout, retries: 2 });
     
     session.get([oid], (error, varbinds) => {
       session.close();
@@ -476,9 +527,9 @@ function snmpGet(ip, oid, community = 'public') {
 /**
  * Perform SNMP WALK to get multiple values
  */
-function snmpWalk(ip, oid, community = 'public') {
+function snmpWalk(ip, oid, community = 'public', timeout = 5000) {
   return new Promise((resolve, reject) => {
-    const session = snmp.createSession(ip, community, { timeout: 2000, retries: 1 });
+    const session = snmp.createSession(ip, community, { timeout: timeout, retries: 2 });
     const results = [];
     
     function feedCb(varbinds) {
@@ -530,7 +581,7 @@ async function queryPrinter(ip, community = 'public') {
   };
   
   try {
-    // Get description
+    // Get description - try standard OID first
     const desc = await snmpGet(ip, PRINTER_OIDS.description, community);
     if (desc) {
       printerData.online = true;
@@ -541,21 +592,33 @@ async function queryPrinter(ip, community = 'public') {
       return printerData;
     }
     
-    // Get serial number
-    const serial = await snmpGet(ip, PRINTER_OIDS.serial, community);
+    // Get serial number - try multiple OIDs (HP uses different OIDs)
+    let serial = await snmpGet(ip, PRINTER_OIDS.serial, community);
+    if (!serial) {
+      serial = await snmpGet(ip, PRINTER_OIDS.serialAlt1, community);
+    }
+    if (!serial) {
+      serial = await snmpGet(ip, PRINTER_OIDS.serialAlt2, community);
+    }
     if (serial) {
       printerData.serial = serial;
     }
     
-    // Get status
-    const status = await snmpGet(ip, PRINTER_OIDS.deviceStatus, community);
+    // Get status - try multiple OIDs
+    let status = await snmpGet(ip, PRINTER_OIDS.deviceStatus, community);
+    if (!status) {
+      status = await snmpGet(ip, PRINTER_OIDS.statusAlt1, community);
+    }
     if (status && !isNaN(status)) {
       const statusCode = parseInt(status);
       printerData.status = DEVICE_STATUS[statusCode] || 'unknown';
     }
     
-    // Get page count
-    const pages = await snmpGet(ip, PRINTER_OIDS.totalPages, community);
+    // Get page count - try multiple OIDs (HP uses different OIDs)
+    let pages = await snmpGet(ip, PRINTER_OIDS.totalPages, community);
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt1, community);
+    }
     if (pages && !isNaN(pages)) {
       printerData.totalPages = parseInt(pages);
     }
@@ -644,36 +707,46 @@ async function queryPrinter(ip, community = 'public') {
         const statusCode = i < trayStatus.length ? parseInt(trayStatus[i]) : 0;
         const mediaName = i < trayMediaName.length ? trayMediaName[i] : null;
         
-        // Filter to only include actual paper trays
-        // Valid trays typically have names containing: tray, drawer, cassette, bypass, manual, feeder
-        // Skip junk entries: numeric-only names, empty, very short names, or names without tray keywords
-        if (!name || name.trim().length < 3 || /^\d+$/.test(name.trim())) {
+        // === STRICT TRAY FILTERING ===
+        // Skip empty, very short, or numeric-only names
+        if (!name || name.trim().length < 3 || /^\d+(\.\d+)?$/.test(name.trim())) {
           continue;
         }
         
+        // Skip binary/garbage data (contains null bytes or non-printable chars)
+        if (/[\x00-\x1F\x7F-\x9F]/.test(name) || name.includes('\u0000')) {
+          continue;
+        }
+        
+        // Only include entries with explicit tray keywords
         const isTray = nameLower.includes('tray') || 
                        nameLower.includes('drawer') || 
                        nameLower.includes('cassette') || 
                        nameLower.includes('bypass') || 
-                       nameLower.includes('manual') || 
-                       nameLower.includes('feeder') ||
-                       nameLower.includes('mpt') ||  // Multi-purpose tray
-                       nameLower.includes('bin') ||
-                       nameLower.includes('stack');
+                       nameLower.includes('manual feed') ||
+                       nameLower.includes('multi-purpose') ||
+                       nameLower.includes('multipurpose') ||
+                       nameLower.includes('mpt');
         
-        // Also accept entries with reasonable capacity values (typical paper tray: 50-2000 sheets)
-        const hasValidCapacity = maxCapacity >= 50 && maxCapacity <= 5000;
+        // Skip non-tray entries entirely (no capacity fallback - too unreliable)
+        if (!isTray) {
+          continue;
+        }
         
-        if (!isTray && !hasValidCapacity) {
+        // Skip duplicates (same name already added)
+        const alreadyExists = printerData.trays.some(t => 
+          t.name.toLowerCase() === name.trim().toLowerCase()
+        );
+        if (alreadyExists) {
           continue;
         }
         
         printerData.trays.push({
-          name: name.trim() || `Tray ${i + 1}`,
+          name: name.trim(),
           maxCapacity: maxCapacity > 0 ? maxCapacity : null,
           currentLevel: currentLevel >= 0 ? currentLevel : null,
           status: TRAY_STATUS[statusCode] || 'unknown',
-          mediaName: mediaName
+          mediaName: mediaName && !/^-?\d+$/.test(mediaName) ? mediaName : null
         });
       }
     }
@@ -1059,10 +1132,18 @@ app.get('/api/settings', (req, res) => {
 app.post('/api/settings', (req, res) => {
   const updates = req.body;
   
-  // Merge updates (preserve password if masked)
+  console.log('Saving settings...');
+  console.log('Email enabled:', updates.email?.enabled);
+  console.log('Password provided:', updates.email?.pass ? 'yes (new)' : 'no (keeping existing)');
+  
+  // Merge updates (preserve password if not provided or masked)
   if (updates.email) {
-    if (updates.email.pass === '••••••••') {
+    // Preserve existing password if new one is null, empty, or masked
+    if (!updates.email.pass || updates.email.pass === '••••••••' || updates.email.pass.includes('••••')) {
       updates.email.pass = config.email.pass;
+      console.log('Preserved existing password');
+    } else {
+      console.log('Using new password');
     }
     config.email = { ...config.email, ...updates.email };
   }
@@ -1093,16 +1174,42 @@ app.post('/api/settings', (req, res) => {
 
 // Test email notification
 app.post('/api/settings/test-email', async (req, res) => {
-  const result = await sendEmailNotification(
-    'Test Notification',
-    'This is a test notification from your Printer Monitoring System. If you received this, your email settings are configured correctly!',
-    'test'
-  );
+  // Validate email settings first
+  if (!config.email.host || !config.email.user || !config.email.pass) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing email configuration. Please fill in SMTP host, username, and password.' 
+    });
+  }
   
-  if (result) {
-    res.json({ success: true, message: 'Test email sent successfully' });
-  } else {
-    res.status(400).json({ success: false, message: 'Failed to send test email. Check your email settings.' });
+  if (!config.email.recipients || config.email.recipients.filter(r => r && r.includes('@')).length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'No valid email recipients configured. Please add at least one recipient.' 
+    });
+  }
+  
+  try {
+    const result = await sendEmailNotification(
+      'Test Notification',
+      'This is a test notification from your Printer Monitoring System. If you received this, your email settings are configured correctly!',
+      'test'
+    );
+    
+    if (result) {
+      res.json({ success: true, message: 'Test email sent successfully! Check your inbox.' });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Failed to send test email. Check the server console for detailed error messages.' 
+      });
+    }
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(400).json({ 
+      success: false, 
+      message: `Email error: ${error.message}. For Gmail, ensure you are using an App Password (not your regular password) with 2FA enabled.`
+    });
   }
 });
 

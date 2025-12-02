@@ -86,11 +86,19 @@ function filterSupplies(supplies) {
 ```
 
 ### Tray Filtering Logic (Backend)
-Trays are filtered in `queryPrinter()` to include only actual paper trays:
-- **Included names**: `tray`, `drawer`, `cassette`, `bypass`, `manual`, `feeder`, `mpt`, `bin`, `stack`
-- **Capacity check**: Also includes entries with valid capacity (50-5000 sheets)
-- **Excluded**: Numeric-only names, names < 3 chars, entries without tray keywords or valid capacity
+Trays are filtered in `queryPrinter()` using strict keyword matching:
+- **Required keywords**: `tray`, `drawer`, `cassette`, `bypass`, `manual feed`, `multi-purpose`, `multipurpose`, `mpt`
+- **Excluded**: Binary/garbage data, numeric-only names, names < 3 chars, entries without tray keywords
+- **Deduplication**: Same-name trays are not added twice
+- **mediaName cleanup**: Numeric-only mediaName values are set to null
 - Canon printers return 500+ tray entries; filtering reduces to ~2-4 actual trays
+
+### HP Printer Compatibility
+HP printers use non-standard SNMP OIDs. The system tries multiple OIDs:
+- **Serial**: Standard → HP-specific (`1.3.6.1.4.1.11.2.3.9.4.2.1.1.3.3.0`) → PWG MIB
+- **Page Count**: Standard → HP-specific (`1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.5.0`)
+- **Status**: Standard → HP-specific (`1.3.6.1.4.1.11.2.3.9.1.1.3.0`)
+- SNMP timeout increased to 5 seconds with 2 retries for slower printers
 
 ## Development
 

@@ -158,9 +158,9 @@
         function filterPrinters(printers) {
             switch (filter) {
                 case 'active':
-                    return printers.filter(p => ['idle', 'printing'].includes(p.status));
+                    return printers.filter(p => p.online === true);
                 case 'offline':
-                    return printers.filter(p => p.status === 'offline');
+                    return printers.filter(p => !p.online || p.status === 'offline');
                 case 'low-supplies':
                     return printers.filter(p => {
                         const validSupplies = filterTonerSupplies(p.supplies);
