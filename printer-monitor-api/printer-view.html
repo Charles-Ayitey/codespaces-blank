@@ -66,17 +66,27 @@
             <div id="main-content" class="hidden">
                 <!-- Tabs -->
                 <div class="bg-white rounded-t-lg shadow">
-                    <div class="flex border-b">
-                        <button onclick="switchTab('overview')" id="tab-overview" class="px-6 py-3 text-sm font-medium tab-active">
+                    <div class="flex border-b overflow-x-auto">
+                        <button onclick="switchTab('overview')" id="tab-overview" class="px-6 py-3 text-sm font-medium tab-active whitespace-nowrap">
                             Overview
                         </button>
-                        <button onclick="switchTab('supplies')" id="tab-supplies" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                        <button onclick="switchTab('supplies')" id="tab-supplies" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
                             Supplies
                         </button>
-                        <button onclick="switchTab('maintenance')" id="tab-maintenance" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                        <button onclick="switchTab('trays')" id="tab-trays" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            Paper Trays
+                        </button>
+                        <button onclick="switchTab('maintenance')" id="tab-maintenance" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
                             Maintenance
                         </button>
-                        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                        <button onclick="switchTab('errors')" id="tab-errors" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            Errors
+                            <span id="error-count" class="hidden ml-1 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">0</span>
+                        </button>
+                        <button onclick="switchTab('network')" id="tab-network" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                            Network
+                        </button>
+                        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
                             Alerts
                             <span id="alert-count" class="hidden ml-1 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">0</span>
                         </button>
@@ -138,17 +148,9 @@
                                         <span id="detail-updated" class="text-sm"></span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Quick Supply Summary -->
-                        <div class="mt-6 bg-gray-50 rounded-lg p-4">
-                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Quick Supply Summary</h3>
-                            <div id="supply-summary" class="flex flex-wrap gap-3">
-                                <!-- Supply badges will be inserted here -->
-                            </div>
                         </div>
                     </div>
+                </div>
 
                     <!-- Supplies Tab -->
                     <div id="content-supplies" class="tab-content hidden">
@@ -164,6 +166,71 @@
                         <p class="text-gray-500 text-sm mb-4">These components have limited lifespans and may need replacement or servicing.</p>
                         <div id="maintenance-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Maintenance items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Paper Trays Tab -->
+                    <div id="content-trays" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Paper Trays</h3>
+                        <p class="text-gray-500 text-sm mb-4">Current paper tray status and capacity information.</p>
+                        <div id="trays-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Trays will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Errors Tab -->
+                    <div id="content-errors" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Printer Errors</h3>
+                        <p class="text-gray-500 text-sm mb-4">Active errors and warnings reported by the printer.</p>
+                        <div id="errors-list" class="space-y-3">
+                            <!-- Printer errors will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Network Tab -->
+                    <div id="content-network" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Identity</h3>
+                        <p class="text-gray-500 text-sm mb-4">Network configuration and identity information for this printer.</p>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                        </svg>
+                                        <span class="text-gray-600">IP Address</span>
+                                    </div>
+                                    <span id="network-ip" class="font-mono font-medium text-gray-900"></span>
+                                </div>
+                                <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                        </svg>
+                                        <span class="text-gray-600">System Name</span>
+                                    </div>
+                                    <span id="network-name" class="font-medium text-gray-900"></span>
+                                </div>
+                                <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        <span class="text-gray-600">Location</span>
+                                    </div>
+                                    <span id="network-location" class="font-medium text-gray-900"></span>
+                                </div>
+                                <div class="flex justify-between items-center py-3">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                        <span class="text-gray-600">Contact</span>
+                                    </div>
+                                    <span id="network-contact" class="font-medium text-gray-900"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -369,27 +436,8 @@
             document.getElementById('detail-pages').textContent = printer.totalPages.toLocaleString();
             document.getElementById('detail-updated').textContent = new Date(printer.lastUpdate).toLocaleString();
 
-            // Supply summary badges
-            const tonerSupplies = filterTonerSupplies(printer.supplies);
-            const supplySummary = document.getElementById('supply-summary');
-            if (tonerSupplies.length > 0) {
-                supplySummary.innerHTML = tonerSupplies.map(supply => {
-                    const percentage = (supply.current / supply.max) * 100;
-                    const colorClass = percentage < 20 ? 'bg-red-100 text-red-700 border-red-300' : 
-                                       percentage < 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 
-                                       'bg-green-100 text-green-700 border-green-300';
-                    return `
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${colorClass}">
-                            <span class="w-3 h-3 rounded-full ${getSupplyColor(percentage, supply.name)}"></span>
-                            <span class="font-medium">${percentage.toFixed(0)}%</span>
-                        </span>
-                    `;
-                }).join('');
-            } else {
-                supplySummary.innerHTML = '<span class="text-gray-500 text-sm">No supply data available</span>';
-            }
-
             // Supplies tab
+            const tonerSupplies = filterTonerSupplies(printer.supplies);
             const suppliesList = document.getElementById('supplies-list');
             if (tonerSupplies.length > 0) {
                 suppliesList.innerHTML = tonerSupplies.map(supply => {
@@ -441,6 +489,121 @@
             } else {
                 maintenanceList.innerHTML = '<p class="text-gray-500 text-center py-8 col-span-2">No maintenance component information available</p>';
             }
+
+            // Paper Trays tab
+            const traysList = document.getElementById('trays-list');
+            const trays = printer.trays || [];
+            if (trays.length > 0) {
+                traysList.innerHTML = trays.map(tray => {
+                    const hasCapacity = tray.maxCapacity && tray.currentLevel !== null;
+                    const percentage = hasCapacity ? (tray.currentLevel / tray.maxCapacity) * 100 : null;
+                    
+                    const statusColors = {
+                        'available': 'bg-green-100 text-green-700 border-green-300',
+                        'empty': 'bg-red-100 text-red-700 border-red-300',
+                        'paper-jam': 'bg-orange-100 text-orange-700 border-orange-300',
+                        'tray-missing': 'bg-gray-100 text-gray-700 border-gray-300',
+                        'unavailable': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                        'unknown': 'bg-gray-100 text-gray-600 border-gray-200'
+                    };
+                    
+                    const statusIcons = {
+                        'available': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                        'empty': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+                        'paper-jam': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+                        'tray-missing': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                        'unavailable': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>',
+                        'unknown': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                    };
+                    
+                    const colorClass = statusColors[tray.status] || statusColors['unknown'];
+                    const iconPath = statusIcons[tray.status] || statusIcons['unknown'];
+                    
+                    return `
+                        <div class="border rounded-lg p-4 ${colorClass}">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                    </svg>
+                                    <h4 class="font-medium">${tray.name}</h4>
+                                </div>
+                                <span class="capitalize text-sm font-semibold flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">${iconPath}</svg>
+                                    ${tray.status}
+                                </span>
+                            </div>
+                            ${hasCapacity ? `
+                                <div class="w-full bg-white bg-opacity-50 rounded-full h-2 mb-2">
+                                    <div class="h-2 rounded-full ${percentage < 20 ? 'bg-red-500' : percentage < 50 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${Math.min(percentage, 100)}%"></div>
+                                </div>
+                                <p class="text-xs">${tray.currentLevel} / ${tray.maxCapacity} sheets (${percentage.toFixed(0)}%)</p>
+                            ` : '<p class="text-xs">Capacity information unavailable</p>'}
+                            ${tray.mediaName ? `<p class="text-xs mt-1 opacity-75">Media: ${tray.mediaName}</p>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                traysList.innerHTML = '<p class="text-gray-500 text-center py-8 col-span-2">No paper tray information available</p>';
+            }
+
+            // Errors tab
+            const errorsList = document.getElementById('errors-list');
+            const errorCountBadge = document.getElementById('error-count');
+            const printerErrors = printer.errors || [];
+            
+            if (printerErrors.length > 0) {
+                errorCountBadge.textContent = printerErrors.length;
+                errorCountBadge.classList.remove('hidden');
+                
+                errorsList.innerHTML = printerErrors.map(error => {
+                    const severityStyles = {
+                        'critical': 'bg-red-50 border-red-200 text-red-700',
+                        'warning': 'bg-yellow-50 border-yellow-200 text-yellow-700',
+                        'info': 'bg-blue-50 border-blue-200 text-blue-700'
+                    };
+                    const severityIcons = {
+                        'critical': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+                        'warning': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>',
+                        'info': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                    };
+                    
+                    const style = severityStyles[error.severity] || severityStyles['info'];
+                    const icon = severityIcons[error.severity] || severityIcons['info'];
+                    
+                    return `
+                        <div class="flex items-start gap-3 p-4 border rounded-lg ${style}">
+                            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                ${icon}
+                            </svg>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <h4 class="font-semibold capitalize">${error.severity} Error</h4>
+                                    <span class="text-xs opacity-75">${new Date(error.timestamp).toLocaleString()}</span>
+                                </div>
+                                <p class="text-sm mt-1">${error.description}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                errorCountBadge.classList.add('hidden');
+                errorsList.innerHTML = `
+                    <div class="text-center py-8">
+                        <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-gray-500">No active errors</p>
+                        <p class="text-gray-400 text-sm">This printer is not reporting any errors</p>
+                    </div>
+                `;
+            }
+
+            // Network tab
+            document.getElementById('network-ip').textContent = printer.ip;
+            document.getElementById('network-name').textContent = printer.network?.sysName || 'Not configured';
+            document.getElementById('network-location').textContent = printer.network?.sysLocation || 'Not configured';
+            document.getElementById('network-contact').textContent = printer.network?.sysContact || 'Not configured';
 
             // Alerts tab
             const alerts = [];

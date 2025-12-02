@@ -1,11 +1,17 @@
 /**
  * Printer Monitoring API Server - Node.js Version
  * Express-based REST API for SNMP printer monitoring
+ * With alerts, notifications, and persistent storage
  */
 
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const snmp = require('net-snmp');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
+const PDFDocument = require('pdfkit');
+const storage = require('./storage');
 
 const app = express();
 const PORT = 5000;
@@ -14,9 +20,28 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage
+// ============================================
+// Data Storage (In-memory with persistence)
+// ============================================
+
+// Load printers from storage on startup
 const printers = new Map();
+const savedPrinters = storage.loadPrinters();
+savedPrinters.forEach(p => printers.set(p.ip, p));
+console.log(`Loaded ${printers.size} printers from storage`);
+
 let scanStatus = { scanning: false, lastScan: null };
+
+// Load config from storage
+let config = storage.loadConfig();
+console.log('Loaded configuration from storage');
+
+// Alert cooldown tracking (in-memory)
+// Key: "ip-alertType-supplyName", Value: timestamp of last alert
+const alertCooldown = new Map();
+
+// Offline tracking (when printer went offline)
+const offlineTimestamps = new Map();
 
 // Historical data storage
 const history = {
@@ -107,16 +132,294 @@ function recordSnapshot() {
 // Start history recording
 setInterval(recordSnapshot, history.snapshotInterval);
 
+// ============================================
+// Alert System
+// ============================================
+
+// Check if alert is in cooldown
+function isInCooldown(cooldownKey) {
+  if (!alertCooldown.has(cooldownKey)) return false;
+  
+  const lastAlert = alertCooldown.get(cooldownKey);
+  const cooldownMs = (config.alerts.cooldownHours || 4) * 60 * 60 * 1000;
+  
+  return (Date.now() - lastAlert) < cooldownMs;
+}
+
+// Set cooldown for an alert
+function setCooldown(cooldownKey) {
+  alertCooldown.set(cooldownKey, Date.now());
+}
+
+// Clear cooldown for an alert (on acknowledge)
+function clearCooldown(cooldownKey) {
+  alertCooldown.delete(cooldownKey);
+}
+
+// Send email notification
+async function sendEmailNotification(subject, message, alertType) {
+  if (!config.email.enabled || !config.email.host || !config.email.user) {
+    return false;
+  }
+  
+  try {
+    const transporter = nodemailer.createTransport({
+      host: config.email.host,
+      port: config.email.port || 587,
+      secure: config.email.secure || false,
+      auth: {
+        user: config.email.user,
+        pass: config.email.pass
+      }
+    });
+    
+    const recipients = config.email.recipients.filter(r => r && r.includes('@'));
+    if (recipients.length === 0) return false;
+    
+    const emoji = alertType === 'critical-supply' ? '🚨' : 
+                  alertType === 'offline' ? '❌' :
+                  alertType === 'back-online' ? '✅' : '⚠️';
+    
+    await transporter.sendMail({
+      from: config.email.user,
+      to: recipients.join(', '),
+      subject: `${emoji} Printer Alert: ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2 style="color: ${alertType.includes('critical') ? '#dc2626' : alertType === 'back-online' ? '#16a34a' : '#f59e0b'};">
+            ${emoji} ${subject}
+          </h2>
+          <p style="font-size: 16px; color: #374151;">${message}</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 12px; color: #9ca3af;">
+            Sent by Printer Monitoring System at ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `
+    });
+    
+    console.log(`Email sent: ${subject}`);
+    return true;
+  } catch (error) {
+    console.error('Email send failed:', error.message);
+    return false;
+  }
+}
+
+// Send webhook notification
+async function sendWebhookNotification(subject, message, alertType) {
+  const enabledWebhooks = (config.webhooks || []).filter(wh => wh.enabled && wh.url);
+  
+  for (const webhook of enabledWebhooks) {
+    try {
+      const emoji = alertType === 'critical-supply' ? '🚨' : 
+                    alertType === 'offline' ? '❌' :
+                    alertType === 'back-online' ? '✅' : '⚠️';
+      
+      // Detect webhook type and format accordingly
+      let payload;
+      if (webhook.url.includes('discord')) {
+        payload = {
+          content: `${emoji} **${subject}**\n${message}`
+        };
+      } else if (webhook.url.includes('slack') || webhook.url.includes('hooks.slack.com')) {
+        payload = {
+          text: `${emoji} *${subject}*\n${message}`
+        };
+      } else {
+        // Generic webhook (Microsoft Teams, custom)
+        payload = {
+          title: `${emoji} ${subject}`,
+          text: message,
+          type: alertType,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      await fetch(webhook.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log(`Webhook sent to ${webhook.name || 'webhook'}: ${subject}`);
+    } catch (error) {
+      console.error(`Webhook failed (${webhook.name}):`, error.message);
+    }
+  }
+}
+
+// Trigger an alert
+async function triggerAlert(type, printerIp, printerName, supplyName, details) {
+  const cooldownKey = supplyName 
+    ? `${printerIp}-${type}-${supplyName}`
+    : `${printerIp}-${type}`;
+  
+  // Check cooldown
+  if (isInCooldown(cooldownKey)) {
+    return null;
+  }
+  
+  // Build alert message
+  let subject, message;
+  switch (type) {
+    case 'critical-supply':
+      subject = `Critical: ${printerName} - ${supplyName} at ${details.percentage}%`;
+      message = `The ${supplyName} on printer "${printerName}" (${printerIp}) has reached a critical level of ${details.percentage}%. Immediate replacement recommended.`;
+      break;
+    case 'low-supply':
+      subject = `Low Supply: ${printerName} - ${supplyName} at ${details.percentage}%`;
+      message = `The ${supplyName} on printer "${printerName}" (${printerIp}) is running low at ${details.percentage}%. Consider ordering replacement supplies.`;
+      break;
+    case 'offline':
+      subject = `Offline: ${printerName}`;
+      message = `Printer "${printerName}" (${printerIp}) has gone offline. Last seen: ${details.lastSeen || 'Unknown'}`;
+      break;
+    case 'back-online':
+      subject = `Back Online: ${printerName}`;
+      message = `Printer "${printerName}" (${printerIp}) is back online after being offline for ${details.downtime || 'some time'}.`;
+      break;
+    default:
+      subject = `Alert: ${printerName}`;
+      message = details.message || 'An alert was triggered.';
+  }
+  
+  // Save alert to history
+  const alert = storage.addAlert({
+    type,
+    printerIp,
+    printerName,
+    supplyName,
+    subject,
+    message,
+    details
+  });
+  
+  // Set cooldown
+  setCooldown(cooldownKey);
+  
+  // Send notifications (async, don't wait)
+  if (config.alerts.enabled) {
+    sendEmailNotification(subject, message, type);
+    sendWebhookNotification(subject, message, type);
+  }
+  
+  console.log(`Alert triggered: ${subject}`);
+  return alert;
+}
+
+// Check all printers for alert conditions
+async function checkAlerts() {
+  if (!config.alerts.enabled) return;
+  
+  const printerList = Array.from(printers.values());
+  
+  for (const printer of printerList) {
+    // Check offline status
+    if (!printer.online || printer.status === 'offline') {
+      if (!offlineTimestamps.has(printer.ip)) {
+        offlineTimestamps.set(printer.ip, Date.now());
+      }
+      
+      const offlineDuration = Date.now() - offlineTimestamps.get(printer.ip);
+      const offlineThresholdMs = (config.alerts.offlineMinutes || 5) * 60 * 1000;
+      
+      if (offlineDuration >= offlineThresholdMs) {
+        await triggerAlert('offline', printer.ip, printer.name || printer.ip, null, {
+          lastSeen: printer.lastUpdate
+        });
+      }
+    } else {
+      // Printer is online - check if it was offline before
+      if (offlineTimestamps.has(printer.ip)) {
+        const downtime = Date.now() - offlineTimestamps.get(printer.ip);
+        const downtimeStr = downtime > 3600000 
+          ? `${Math.round(downtime / 3600000)} hours`
+          : `${Math.round(downtime / 60000)} minutes`;
+        
+        await triggerAlert('back-online', printer.ip, printer.name || printer.ip, null, {
+          downtime: downtimeStr
+        });
+        
+        offlineTimestamps.delete(printer.ip);
+      }
+      
+      // Check supply levels
+      for (const supply of printer.supplies) {
+        const percentage = supply.max > 0 ? Math.round((supply.current / supply.max) * 100) : 100;
+        
+        // Only check toner/ink supplies
+        const supplyName = supply.name.toLowerCase();
+        if (!supplyName.includes('toner') && !supplyName.includes('ink')) continue;
+        if (supplyName.includes('drum') || supplyName.includes('fuser')) continue;
+        
+        if (percentage >= 0 && percentage < config.alerts.criticalSupplyThreshold) {
+          await triggerAlert('critical-supply', printer.ip, printer.name || printer.ip, supply.name, {
+            percentage
+          });
+        } else if (percentage >= config.alerts.criticalSupplyThreshold && percentage < config.alerts.lowSupplyThreshold) {
+          await triggerAlert('low-supply', printer.ip, printer.name || printer.ip, supply.name, {
+            percentage
+          });
+        }
+      }
+    }
+  }
+}
+
+// ============================================
+// Persistence - Save data periodically
+// ============================================
+
+// Save printers every 5 minutes
+setInterval(() => {
+  if (printers.size > 0) {
+    storage.savePrinters(Array.from(printers.values()));
+    console.log(`Saved ${printers.size} printers to storage`);
+  }
+}, 5 * 60 * 1000);
+
+// Save history every 10 minutes
+setInterval(() => {
+  storage.saveHistory(history);
+  console.log('Saved history to storage');
+}, 10 * 60 * 1000);
+
 // Standard Printer MIB OIDs
 const PRINTER_OIDS = {
+  // System Information
   description: '1.3.6.1.2.1.1.1.0',
+  sysName: '1.3.6.1.2.1.1.5.0',
+  sysLocation: '1.3.6.1.2.1.1.6.0',
+  sysContact: '1.3.6.1.2.1.1.4.0',
+  
+  // Printer Identity
   serial: '1.3.6.1.2.1.43.5.1.1.17.1',
+  
+  // Status
   status: '1.3.6.1.2.1.25.3.5.1.1.1',
   deviceStatus: '1.3.6.1.2.1.43.16.5.1.2.1.1',
+  
+  // Page Counts
   totalPages: '1.3.6.1.2.1.43.10.2.1.4.1.1',
+  
+  // Supplies (prtMarkerSuppliesTable)
   supplyDesc: '1.3.6.1.2.1.43.11.1.1.6.1',
   supplyMax: '1.3.6.1.2.1.43.11.1.1.8.1',
-  supplyCurrent: '1.3.6.1.2.1.43.11.1.1.9.1'
+  supplyCurrent: '1.3.6.1.2.1.43.11.1.1.9.1',
+  
+  // Input Trays (prtInputTable)
+  inputTrayName: '1.3.6.1.2.1.43.8.2.1.9.1',
+  inputTrayCapacityMax: '1.3.6.1.2.1.43.8.2.1.10.1',
+  inputTrayCapacityCurrent: '1.3.6.1.2.1.43.8.2.1.11.1',
+  inputTrayStatus: '1.3.6.1.2.1.43.8.2.1.12.1',
+  inputTrayMediaName: '1.3.6.1.2.1.43.8.2.1.18.1',
+  
+  // Printer Alerts (prtAlertTable)
+  alertSeverity: '1.3.6.1.2.1.43.18.1.1.2.1',
+  alertGroup: '1.3.6.1.2.1.43.18.1.1.4.1',
+  alertIndex: '1.3.6.1.2.1.43.18.1.1.5.1',
+  alertDescription: '1.3.6.1.2.1.43.18.1.1.8.1'
 };
 
 // Status mappings
@@ -127,6 +430,24 @@ const DEVICE_STATUS = {
   4: 'printing',
   5: 'warmup',
   6: 'waiting'
+};
+
+// Input tray status mappings
+const TRAY_STATUS = {
+  0: 'unknown',
+  1: 'available',
+  2: 'unavailable',
+  3: 'empty',
+  4: 'paper-jam',
+  5: 'tray-missing'
+};
+
+// Alert severity mappings
+const ALERT_SEVERITY = {
+  1: 'other',
+  2: 'critical',
+  3: 'warning',
+  4: 'info'
 };
 
 /**
@@ -197,6 +518,13 @@ async function queryPrinter(ip, community = 'public') {
     status: 'unknown',
     totalPages: 0,
     supplies: [],
+    trays: [],
+    errors: [],
+    network: {
+      sysName: null,
+      sysLocation: null,
+      sysContact: null
+    },
     lastUpdate: new Date().toISOString(),
     online: false
   };
@@ -232,6 +560,19 @@ async function queryPrinter(ip, community = 'public') {
       printerData.totalPages = parseInt(pages);
     }
     
+    // Get network identity information
+    const [sysName, sysLocation, sysContact] = await Promise.all([
+      snmpGet(ip, PRINTER_OIDS.sysName, community),
+      snmpGet(ip, PRINTER_OIDS.sysLocation, community),
+      snmpGet(ip, PRINTER_OIDS.sysContact, community)
+    ]);
+    
+    printerData.network = {
+      sysName: sysName || null,
+      sysLocation: sysLocation || null,
+      sysContact: sysContact || null
+    };
+    
     // Get supply levels
     const supplyNames = await snmpWalk(ip, PRINTER_OIDS.supplyDesc, community);
     const supplyMax = await snmpWalk(ip, PRINTER_OIDS.supplyMax, community);
@@ -242,15 +583,119 @@ async function queryPrinter(ip, community = 'public') {
         if (i < supplyMax.length && i < supplyCurrent.length) {
           const maxVal = parseInt(supplyMax[i]);
           const currentVal = parseInt(supplyCurrent[i]);
+          const name = supplyNames[i] || '';
+          const nameLower = name.toLowerCase().trim();
           
-          if (!isNaN(maxVal) && !isNaN(currentVal) && maxVal > 0) {
-            printerData.supplies.push({
-              name: supplyNames[i],
-              current: currentVal,
-              max: maxVal,
-              type: supplyNames[i].toLowerCase().includes('toner') ? 'toner' : 'other'
-            });
+          // Skip invalid entries
+          if (!isNaN(maxVal) && !isNaN(currentVal) && maxVal > 0 && name) {
+            // Skip junk entries: numeric-only names, empty, or very short names
+            if (/^\d+$/.test(name.trim()) || name.trim().length < 3) {
+              continue;
+            }
+            
+            // Determine supply type based on name
+            let type = 'other';
+            if (nameLower.includes('toner') || nameLower.includes('ink') || nameLower.includes('cartridge')) {
+              // Exclude waste toner from primary toner display
+              if (nameLower.includes('waste')) {
+                type = 'waste';
+              } else {
+                type = 'toner';
+              }
+            } else if (nameLower.includes('drum')) {
+              type = 'drum';
+            } else if (nameLower.includes('fuser') || nameLower.includes('fixing')) {
+              type = 'fuser';
+            } else if (nameLower.includes('belt') || nameLower.includes('transfer')) {
+              type = 'transfer';
+            } else if (nameLower.includes('maintenance') || nameLower.includes('kit')) {
+              type = 'maintenance';
+            }
+            
+            // Only include recognized supply types (filter out unknown "other" items)
+            if (type !== 'other') {
+              printerData.supplies.push({
+                name: name.trim(),
+                current: currentVal,
+                max: maxVal,
+                type: type
+              });
+            }
           }
+        }
+      }
+    }
+    
+    // Get input tray information
+    const [trayNames, trayMaxCapacity, trayCurrentLevel, trayStatus, trayMediaName] = await Promise.all([
+      snmpWalk(ip, PRINTER_OIDS.inputTrayName, community),
+      snmpWalk(ip, PRINTER_OIDS.inputTrayCapacityMax, community),
+      snmpWalk(ip, PRINTER_OIDS.inputTrayCapacityCurrent, community),
+      snmpWalk(ip, PRINTER_OIDS.inputTrayStatus, community),
+      snmpWalk(ip, PRINTER_OIDS.inputTrayMediaName, community)
+    ]);
+    
+    if (trayNames.length > 0) {
+      for (let i = 0; i < trayNames.length; i++) {
+        const name = trayNames[i] || '';
+        const nameLower = name.toLowerCase().trim();
+        const maxCapacity = i < trayMaxCapacity.length ? parseInt(trayMaxCapacity[i]) : -1;
+        const currentLevel = i < trayCurrentLevel.length ? parseInt(trayCurrentLevel[i]) : -1;
+        const statusCode = i < trayStatus.length ? parseInt(trayStatus[i]) : 0;
+        const mediaName = i < trayMediaName.length ? trayMediaName[i] : null;
+        
+        // Filter to only include actual paper trays
+        // Valid trays typically have names containing: tray, drawer, cassette, bypass, manual, feeder
+        // Skip junk entries: numeric-only names, empty, very short names, or names without tray keywords
+        if (!name || name.trim().length < 3 || /^\d+$/.test(name.trim())) {
+          continue;
+        }
+        
+        const isTray = nameLower.includes('tray') || 
+                       nameLower.includes('drawer') || 
+                       nameLower.includes('cassette') || 
+                       nameLower.includes('bypass') || 
+                       nameLower.includes('manual') || 
+                       nameLower.includes('feeder') ||
+                       nameLower.includes('mpt') ||  // Multi-purpose tray
+                       nameLower.includes('bin') ||
+                       nameLower.includes('stack');
+        
+        // Also accept entries with reasonable capacity values (typical paper tray: 50-2000 sheets)
+        const hasValidCapacity = maxCapacity >= 50 && maxCapacity <= 5000;
+        
+        if (!isTray && !hasValidCapacity) {
+          continue;
+        }
+        
+        printerData.trays.push({
+          name: name.trim() || `Tray ${i + 1}`,
+          maxCapacity: maxCapacity > 0 ? maxCapacity : null,
+          currentLevel: currentLevel >= 0 ? currentLevel : null,
+          status: TRAY_STATUS[statusCode] || 'unknown',
+          mediaName: mediaName
+        });
+      }
+    }
+    
+    // Get printer alerts/errors
+    const [alertSeverities, alertDescriptions] = await Promise.all([
+      snmpWalk(ip, PRINTER_OIDS.alertSeverity, community),
+      snmpWalk(ip, PRINTER_OIDS.alertDescription, community)
+    ]);
+    
+    if (alertSeverities.length > 0) {
+      for (let i = 0; i < alertSeverities.length; i++) {
+        const severityCode = parseInt(alertSeverities[i]);
+        const description = i < alertDescriptions.length ? alertDescriptions[i] : 'Unknown alert';
+        
+        // Only include critical and warning alerts
+        if (severityCode === 2 || severityCode === 3) {
+          printerData.errors.push({
+            severity: ALERT_SEVERITY[severityCode] || 'unknown',
+            description: description,
+            timestamp: new Date().toISOString()
+          });
         }
       }
     }
@@ -601,6 +1046,323 @@ app.get('/api/history/analytics', (req, res) => {
   });
 });
 
+// ============================================
+// Settings API Endpoints
+// ============================================
+
+// Get settings (masked)
+app.get('/api/settings', (req, res) => {
+  res.json(storage.getConfigForAPI(config));
+});
+
+// Update settings
+app.post('/api/settings', (req, res) => {
+  const updates = req.body;
+  
+  // Merge updates (preserve password if masked)
+  if (updates.email) {
+    if (updates.email.pass === '••••••••') {
+      updates.email.pass = config.email.pass;
+    }
+    config.email = { ...config.email, ...updates.email };
+  }
+  
+  if (updates.webhooks) {
+    // Restore encrypted URLs for unchanged webhooks
+    config.webhooks = updates.webhooks.map((wh, i) => {
+      if (wh.url && wh.url.includes('••••')) {
+        return { ...wh, url: config.webhooks[i]?.url || '' };
+      }
+      return wh;
+    });
+  }
+  
+  if (updates.alerts) {
+    config.alerts = { ...config.alerts, ...updates.alerts };
+  }
+  
+  if (updates.reports) {
+    config.reports = { ...config.reports, ...updates.reports };
+  }
+  
+  // Save to storage
+  storage.saveConfig(config);
+  
+  res.json({ message: 'Settings saved', config: storage.getConfigForAPI(config) });
+});
+
+// Test email notification
+app.post('/api/settings/test-email', async (req, res) => {
+  const result = await sendEmailNotification(
+    'Test Notification',
+    'This is a test notification from your Printer Monitoring System. If you received this, your email settings are configured correctly!',
+    'test'
+  );
+  
+  if (result) {
+    res.json({ success: true, message: 'Test email sent successfully' });
+  } else {
+    res.status(400).json({ success: false, message: 'Failed to send test email. Check your email settings.' });
+  }
+});
+
+// Test webhook notification
+app.post('/api/settings/test-webhook', async (req, res) => {
+  const { webhookIndex } = req.body;
+  
+  if (webhookIndex === undefined || !config.webhooks[webhookIndex]) {
+    return res.status(400).json({ success: false, message: 'Invalid webhook index' });
+  }
+  
+  const webhook = config.webhooks[webhookIndex];
+  const originalEnabled = webhook.enabled;
+  webhook.enabled = true;
+  
+  try {
+    await sendWebhookNotification(
+      'Test Notification',
+      'This is a test notification from your Printer Monitoring System.',
+      'test'
+    );
+    webhook.enabled = originalEnabled;
+    res.json({ success: true, message: 'Test webhook sent' });
+  } catch (error) {
+    webhook.enabled = originalEnabled;
+    res.status(400).json({ success: false, message: 'Failed to send webhook: ' + error.message });
+  }
+});
+
+// ============================================
+// Alerts API Endpoints
+// ============================================
+
+// Get alert history
+app.get('/api/alerts', (req, res) => {
+  const alerts = storage.loadAlertHistory();
+  const unacknowledged = alerts.filter(a => !a.acknowledged).length;
+  
+  res.json({
+    total: alerts.length,
+    unacknowledged,
+    alerts: alerts.reverse() // Most recent first
+  });
+});
+
+// Get unacknowledged count (for badge)
+app.get('/api/alerts/count', (req, res) => {
+  res.json({ count: storage.getUnacknowledgedCount() });
+});
+
+// Acknowledge an alert
+app.post('/api/alerts/:id/acknowledge', (req, res) => {
+  const alertId = req.params.id;
+  const { acknowledgedBy = 'user' } = req.body || {};
+  
+  const alert = storage.acknowledgeAlert(alertId, acknowledgedBy);
+  
+  if (alert) {
+    // Clear cooldown so alert can trigger again if issue persists
+    const cooldownKey = alert.supplyName 
+      ? `${alert.printerIp}-${alert.type}-${alert.supplyName}`
+      : `${alert.printerIp}-${alert.type}`;
+    clearCooldown(cooldownKey);
+    
+    res.json({ message: 'Alert acknowledged', alert });
+  } else {
+    res.status(404).json({ error: 'Alert not found' });
+  }
+});
+
+// Acknowledge all alerts
+app.post('/api/alerts/acknowledge-all', (req, res) => {
+  const alerts = storage.loadAlertHistory();
+  let count = 0;
+  
+  alerts.forEach(alert => {
+    if (!alert.acknowledged) {
+      storage.acknowledgeAlert(alert.id, 'user');
+      count++;
+    }
+  });
+  
+  res.json({ message: `Acknowledged ${count} alerts` });
+});
+
+// Delete an alert
+app.delete('/api/alerts/:id', (req, res) => {
+  const result = storage.deleteAlert(req.params.id);
+  
+  if (result) {
+    res.json({ message: 'Alert deleted' });
+  } else {
+    res.status(404).json({ error: 'Alert not found' });
+  }
+});
+
+// Clear all alerts
+app.delete('/api/alerts', (req, res) => {
+  storage.saveAlertHistory([]);
+  res.json({ message: 'All alerts cleared' });
+});
+
+// ============================================
+// Reports API Endpoints
+// ============================================
+
+// Generate usage report
+app.get('/api/reports/usage', (req, res) => {
+  const format = req.query.format || 'json';
+  const days = parseInt(req.query.days) || 7;
+  
+  const printerList = Array.from(printers.values());
+  const dates = Array.from(history.daily.keys()).sort().slice(-days);
+  
+  const reportData = {
+    title: 'Printer Usage Report',
+    generatedAt: new Date().toISOString(),
+    period: `Last ${days} days`,
+    printers: []
+  };
+  
+  for (const printer of printerList) {
+    const printerReport = {
+      ip: printer.ip,
+      name: printer.name,
+      status: printer.status,
+      totalPages: printer.totalPages,
+      dailyUsage: []
+    };
+    
+    for (const date of dates) {
+      const dailyData = history.daily.get(date);
+      if (dailyData && dailyData.pageCountEnd[printer.ip]) {
+        printerReport.dailyUsage.push({
+          date,
+          pagesPrinted: (dailyData.pageCountEnd[printer.ip] || 0) - (dailyData.pageCountStart[printer.ip] || 0)
+        });
+      }
+    }
+    
+    reportData.printers.push(printerReport);
+  }
+  
+  if (format === 'csv') {
+    let csv = 'Printer Name,IP,Status,Total Pages,';
+    csv += dates.join(',') + '\n';
+    
+    for (const printer of reportData.printers) {
+      csv += `"${printer.name}",${printer.ip},${printer.status},${printer.totalPages},`;
+      csv += dates.map(d => {
+        const usage = printer.dailyUsage.find(u => u.date === d);
+        return usage ? usage.pagesPrinted : 0;
+      }).join(',') + '\n';
+    }
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=usage-report-${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } else if (format === 'pdf') {
+    const doc = new PDFDocument();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=usage-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.pipe(res);
+    
+    doc.fontSize(20).text('Printer Usage Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`);
+    doc.text(`Period: Last ${days} days`);
+    doc.moveDown();
+    
+    for (const printer of reportData.printers) {
+      doc.fontSize(14).text(`${printer.name} (${printer.ip})`);
+      doc.fontSize(10).text(`Status: ${printer.status} | Total Pages: ${printer.totalPages}`);
+      
+      const totalPrinted = printer.dailyUsage.reduce((sum, d) => sum + d.pagesPrinted, 0);
+      doc.text(`Pages printed in period: ${totalPrinted}`);
+      doc.moveDown();
+    }
+    
+    doc.end();
+  } else {
+    res.json(reportData);
+  }
+});
+
+// Generate supply status report
+app.get('/api/reports/supplies', (req, res) => {
+  const format = req.query.format || 'json';
+  const printerList = Array.from(printers.values());
+  
+  const reportData = {
+    title: 'Supply Status Report',
+    generatedAt: new Date().toISOString(),
+    supplies: []
+  };
+  
+  for (const printer of printerList) {
+    for (const supply of printer.supplies) {
+      const percentage = supply.max > 0 ? Math.round((supply.current / supply.max) * 100) : 0;
+      reportData.supplies.push({
+        printerName: printer.name,
+        printerIp: printer.ip,
+        supplyName: supply.name,
+        percentage,
+        status: percentage < 10 ? 'Critical' : percentage < 20 ? 'Low' : 'OK'
+      });
+    }
+  }
+  
+  // Sort by percentage (lowest first)
+  reportData.supplies.sort((a, b) => a.percentage - b.percentage);
+  
+  if (format === 'csv') {
+    let csv = 'Printer,IP,Supply,Percentage,Status\n';
+    for (const s of reportData.supplies) {
+      csv += `"${s.printerName}",${s.printerIp},"${s.supplyName}",${s.percentage}%,${s.status}\n`;
+    }
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=supply-report-${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } else if (format === 'pdf') {
+    const doc = new PDFDocument();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=supply-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.pipe(res);
+    
+    doc.fontSize(20).text('Supply Status Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`);
+    doc.moveDown();
+    
+    // Critical supplies first
+    const critical = reportData.supplies.filter(s => s.status === 'Critical');
+    if (critical.length > 0) {
+      doc.fontSize(14).fillColor('red').text('Critical Supplies:');
+      doc.fillColor('black').fontSize(10);
+      critical.forEach(s => {
+        doc.text(`• ${s.printerName}: ${s.supplyName} - ${s.percentage}%`);
+      });
+      doc.moveDown();
+    }
+    
+    // Low supplies
+    const low = reportData.supplies.filter(s => s.status === 'Low');
+    if (low.length > 0) {
+      doc.fontSize(14).fillColor('orange').text('Low Supplies:');
+      doc.fillColor('black').fontSize(10);
+      low.forEach(s => {
+        doc.text(`• ${s.printerName}: ${s.supplyName} - ${s.percentage}%`);
+      });
+      doc.moveDown();
+    }
+    
+    doc.end();
+  } else {
+    res.json(reportData);
+  }
+});
+
 // Background auto-refresh (every 60 seconds)
 setInterval(async () => {
   if (printers.size > 0 && !scanStatus.scanning) {
@@ -610,6 +1372,9 @@ setInterval(async () => {
       const printerData = await queryPrinter(ip);
       printers.set(ip, printerData);
     }
+    
+    // Check alerts after refresh
+    await checkAlerts();
   }
 }, 60000);
 
@@ -628,6 +1393,18 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  GET    /api/scan/status       - Get scan status');
   console.log('  GET    /api/stats             - Get statistics');
   console.log('  GET    /api/health            - Health check');
+  console.log('\nHistory & Analytics:');
+  console.log('  GET    /api/history/snapshots - Recent snapshots');
+  console.log('  GET    /api/history/daily     - Daily aggregates');
+  console.log('  GET    /api/history/analytics - Analytics summary');
+  console.log('\nSettings & Alerts:');
+  console.log('  GET    /api/settings          - Get settings');
+  console.log('  POST   /api/settings          - Update settings');
+  console.log('  GET    /api/alerts            - Get alert history');
+  console.log('  POST   /api/alerts/:id/acknowledge - Acknowledge alert');
+  console.log('\nReports:');
+  console.log('  GET    /api/reports/usage     - Usage report (json/csv/pdf)');
+  console.log('  GET    /api/reports/supplies  - Supply report (json/csv/pdf)');
   console.log(`\nServer running on http://localhost:${PORT}`);
   console.log('='.repeat(60));
 });

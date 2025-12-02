@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Printer Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b border-gray-200">
+    <div class="max-w-4xl mx-auto px-4 py-4">
+      <div class="flex items-center gap-4">
+        <a href="standalone_dashboard.html" class="text-gray-500 hover:text-gray-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+        </a>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">⚙️ Settings</h1>
+          <p class="text-sm text-gray-500">Configure notifications, alerts, and reports</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transition-all">
+      <span id="toast-message"></span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div class="flex border-b">
+        <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
+          📧 Email
+        </button>
+        <button onclick="switchTab('webhooks')" id="tab-webhooks" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+          🔗 Webhooks
+        </button>
+        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+          🔔 Alerts
+        </button>
+        <button onclick="switchTab('reports')" id="tab-reports" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+          📊 Reports
+        </button>
+      </div>
+
+      <!-- Email Tab -->
+      <div id="panel-email" class="p-6">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-gray-800">Email Notifications</h3>
+              <p class="text-sm text-gray-500">Receive alerts via email</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="email-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+              <input type="text" id="email-host" placeholder="smtp.gmail.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+              <input type="number" id="email-port" placeholder="587" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Username (Email)</label>
+              <input type="email" id="email-user" placeholder="alerts@company.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password / App Password</label>
+              <input type="password" id="email-pass" placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="email-secure" class="rounded border-gray-300">
+            <label for="email-secure" class="text-sm text-gray-700">Use SSL/TLS (port 465)</label>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
+            <div id="recipients-list" class="space-y-2 mb-2"></div>
+            <div class="flex gap-2">
+              <input type="email" id="new-recipient" placeholder="Add email address" class="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <button onclick="addRecipient()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Add</button>
+            </div>
+          </div>
+
+          <button onclick="testEmail()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            Send Test Email
+          </button>
+        </div>
+      </div>
+
+      <!-- Webhooks Tab -->
+      <div id="panel-webhooks" class="p-6 hidden">
+        <div class="space-y-4">
+          <div>
+            <h3 class="font-semibold text-gray-800">Webhook Integrations</h3>
+            <p class="text-sm text-gray-500">Send alerts to Slack, Discord, Teams, or custom webhooks</p>
+          </div>
+
+          <div id="webhooks-list" class="space-y-3"></div>
+
+          <div class="border-t pt-4">
+            <h4 class="font-medium text-gray-700 mb-2">Add New Webhook</h4>
+            <div class="grid grid-cols-3 gap-2">
+              <input type="text" id="new-webhook-name" placeholder="Name (e.g., Slack)" class="px-3 py-2 border rounded-lg">
+              <input type="url" id="new-webhook-url" placeholder="Webhook URL" class="col-span-2 px-3 py-2 border rounded-lg">
+            </div>
+            <button onclick="addWebhook()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Add Webhook</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts Tab -->
+      <div id="panel-alerts" class="p-6 hidden">
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-gray-800">Alert System</h3>
+              <p class="text-sm text-gray-500">Enable or disable all alerts</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="alerts-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Low Supply Threshold: <span id="low-supply-value">20</span>%</label>
+            <input type="range" id="low-supply-threshold" min="5" max="50" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <p class="text-xs text-gray-500 mt-1">Alert when toner/ink falls below this level</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Critical Supply Threshold: <span id="critical-supply-value">10</span>%</label>
+            <input type="range" id="critical-supply-threshold" min="1" max="30" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <p class="text-xs text-gray-500 mt-1">Urgent alert when supply is critically low</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Offline Alert After: <span id="offline-value">5</span> minutes</label>
+            <input type="range" id="offline-minutes" min="1" max="30" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <p class="text-xs text-gray-500 mt-1">Wait this long before alerting about offline printers</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Alert Cooldown: <span id="cooldown-value">4</span> hours</label>
+            <input type="range" id="cooldown-hours" min="1" max="24" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <p class="text-xs text-gray-500 mt-1">Minimum time between repeated alerts for the same issue</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Tab -->
+      <div id="panel-reports" class="p-6 hidden">
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-gray-800">Scheduled Reports</h3>
+              <p class="text-sm text-gray-500">Automatically generate and email reports</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="reports-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
+            <select id="report-schedule" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Report Format</label>
+            <select id="report-format" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option value="pdf">PDF</option>
+              <option value="csv">CSV</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="report-email" class="rounded border-gray-300">
+            <label for="report-email" class="text-sm text-gray-700">Email reports to recipients</label>
+          </div>
+
+          <div class="border-t pt-4">
+            <h4 class="font-medium text-gray-700 mb-3">Generate Report Now</h4>
+            <div class="flex gap-2">
+              <a href="#" onclick="downloadReport('usage', 'pdf')" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">📄 Usage (PDF)</a>
+              <a href="#" onclick="downloadReport('usage', 'csv')" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">📊 Usage (CSV)</a>
+              <a href="#" onclick="downloadReport('supplies', 'pdf')" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">🖨️ Supplies (PDF)</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex justify-end">
+      <button onclick="saveSettings()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Save Settings
+      </button>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    let config = {};
+
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('[id^="tab-"]').forEach(t => {
+        t.classList.remove('border-blue-500', 'text-blue-600');
+        t.classList.add('border-transparent', 'text-gray-500');
+      });
+      
+      document.getElementById(`panel-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).classList.remove('border-transparent', 'text-gray-500');
+      document.getElementById(`tab-${tab}`).classList.add('border-blue-500', 'text-blue-600');
+    }
+
+    // Toast notification
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      
+      toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+      toastMsg.textContent = message;
+      toast.classList.remove('hidden');
+      
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    // Load settings
+    async function loadSettings() {
+      try {
+        const response = await fetch(`${API_BASE}/settings`);
+        config = await response.json();
+        
+        // Email
+        document.getElementById('email-enabled').checked = config.email?.enabled || false;
+        document.getElementById('email-host').value = config.email?.host || '';
+        document.getElementById('email-port').value = config.email?.port || 587;
+        document.getElementById('email-user').value = config.email?.user || '';
+        document.getElementById('email-pass').value = config.email?.pass || '';
+        document.getElementById('email-secure').checked = config.email?.secure || false;
+        renderRecipients();
+        
+        // Webhooks
+        renderWebhooks();
+        
+        // Alerts
+        document.getElementById('alerts-enabled').checked = config.alerts?.enabled !== false;
+        document.getElementById('low-supply-threshold').value = config.alerts?.lowSupplyThreshold || 20;
+        document.getElementById('critical-supply-threshold').value = config.alerts?.criticalSupplyThreshold || 10;
+        document.getElementById('offline-minutes').value = config.alerts?.offlineMinutes || 5;
+        document.getElementById('cooldown-hours').value = config.alerts?.cooldownHours || 4;
+        updateSliderValues();
+        
+        // Reports
+        document.getElementById('reports-enabled').checked = config.reports?.enabled || false;
+        document.getElementById('report-schedule').value = config.reports?.schedule || 'weekly';
+        document.getElementById('report-format').value = config.reports?.format || 'pdf';
+        document.getElementById('report-email').checked = config.reports?.emailOnGenerate || false;
+        
+      } catch (error) {
+        showToast('Failed to load settings', 'error');
+      }
+    }
+
+    // Update slider display values
+    function updateSliderValues() {
+      document.getElementById('low-supply-value').textContent = document.getElementById('low-supply-threshold').value;
+      document.getElementById('critical-supply-value').textContent = document.getElementById('critical-supply-threshold').value;
+      document.getElementById('offline-value').textContent = document.getElementById('offline-minutes').value;
+      document.getElementById('cooldown-value').textContent = document.getElementById('cooldown-hours').value;
+    }
+
+    // Render recipients list
+    function renderRecipients() {
+      const list = document.getElementById('recipients-list');
+      const recipients = config.email?.recipients || [];
+      
+      list.innerHTML = recipients.map((r, i) => `
+        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+          <span class="flex-1">${r}</span>
+          <button onclick="removeRecipient(${i})" class="text-red-500 hover:text-red-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // Add recipient
+    function addRecipient() {
+      const input = document.getElementById('new-recipient');
+      const email = input.value.trim();
+      
+      if (email && email.includes('@')) {
+        if (!config.email) config.email = { recipients: [] };
+        if (!config.email.recipients) config.email.recipients = [];
+        config.email.recipients.push(email);
+        renderRecipients();
+        input.value = '';
+      }
+    }
+
+    // Remove recipient
+    function removeRecipient(index) {
+      config.email.recipients.splice(index, 1);
+      renderRecipients();
+    }
+
+    // Render webhooks list
+    function renderWebhooks() {
+      const list = document.getElementById('webhooks-list');
+      const webhooks = config.webhooks || [];
+      
+      list.innerHTML = webhooks.map((wh, i) => `
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" ${wh.enabled ? 'checked' : ''} onchange="toggleWebhook(${i})" class="sr-only peer">
+            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+          <div class="flex-1">
+            <p class="font-medium text-gray-800">${wh.name || 'Webhook'}</p>
+            <p class="text-sm text-gray-500">${wh.url}</p>
+          </div>
+          <button onclick="testWebhook(${i})" class="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">Test</button>
+          <button onclick="removeWebhook(${i})" class="text-red-500 hover:text-red-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('') || '<p class="text-gray-500 text-center py-4">No webhooks configured</p>';
+    }
+
+    // Add webhook
+    function addWebhook() {
+      const name = document.getElementById('new-webhook-name').value.trim();
+      const url = document.getElementById('new-webhook-url').value.trim();
+      
+      if (url) {
+        if (!config.webhooks) config.webhooks = [];
+        config.webhooks.push({ name: name || 'Webhook', url, enabled: true });
+        renderWebhooks();
+        document.getElementById('new-webhook-name').value = '';
+        document.getElementById('new-webhook-url').value = '';
+      }
+    }
+
+    // Toggle webhook
+    function toggleWebhook(index) {
+      config.webhooks[index].enabled = !config.webhooks[index].enabled;
+    }
+
+    // Remove webhook
+    function removeWebhook(index) {
+      config.webhooks.splice(index, 1);
+      renderWebhooks();
+    }
+
+    // Test email
+    async function testEmail() {
+      try {
+        const response = await fetch(`${API_BASE}/settings/test-email`, { method: 'POST' });
+        const result = await response.json();
+        showToast(result.message, result.success ? 'success' : 'error');
+      } catch (error) {
+        showToast('Failed to send test email', 'error');
+      }
+    }
+
+    // Test webhook
+    async function testWebhook(index) {
+      try {
+        const response = await fetch(`${API_BASE}/settings/test-webhook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ webhookIndex: index })
+        });
+        const result = await response.json();
+        showToast(result.message, result.success ? 'success' : 'error');
+      } catch (error) {
+        showToast('Failed to send test webhook', 'error');
+      }
+    }
+
+    // Save settings
+    async function saveSettings() {
+      const settings = {
+        email: {
+          enabled: document.getElementById('email-enabled').checked,
+          host: document.getElementById('email-host').value,
+          port: parseInt(document.getElementById('email-port').value) || 587,
+          secure: document.getElementById('email-secure').checked,
+          user: document.getElementById('email-user').value,
+          pass: document.getElementById('email-pass').value,
+          recipients: config.email?.recipients || []
+        },
+        webhooks: config.webhooks || [],
+        alerts: {
+          enabled: document.getElementById('alerts-enabled').checked,
+          lowSupplyThreshold: parseInt(document.getElementById('low-supply-threshold').value),
+          criticalSupplyThreshold: parseInt(document.getElementById('critical-supply-threshold').value),
+          offlineMinutes: parseInt(document.getElementById('offline-minutes').value),
+          cooldownHours: parseInt(document.getElementById('cooldown-hours').value)
+        },
+        reports: {
+          enabled: document.getElementById('reports-enabled').checked,
+          schedule: document.getElementById('report-schedule').value,
+          format: document.getElementById('report-format').value,
+          emailOnGenerate: document.getElementById('report-email').checked
+        }
+      };
+      
+      try {
+        const response = await fetch(`${API_BASE}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+        
+        if (response.ok) {
+          showToast('Settings saved successfully!');
+          loadSettings(); // Reload to get masked values
+        } else {
+          showToast('Failed to save settings', 'error');
+        }
+      } catch (error) {
+        showToast('Failed to save settings', 'error');
+      }
+    }
+
+    // Download report
+    function downloadReport(type, format) {
+      window.open(`${API_BASE}/reports/${type}?format=${format}`, '_blank');
+    }
+
+    // Event listeners for sliders
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('input', updateSliderValues);
+    });
+
+    // Initialize
+    loadSettings();
+  </script>
+</body>
+</html>
