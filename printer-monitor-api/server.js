@@ -156,12 +156,55 @@ function clearCooldown(cooldownKey) {
   alertCooldown.delete(cooldownKey);
 }
 
+// Check if current time is within notification schedule
+function isWithinNotificationSchedule() {
+  const alertConfig = config.alerts || {};
+  const schedule = alertConfig.notifySchedule || 'always';
+  
+  // Always send notifications
+  if (schedule === 'always') {
+    return true;
+  }
+  
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+  
+  const startTime = alertConfig.notifyTime || '08:00';
+  const endTime = alertConfig.notifyEndTime || '18:00';
+  
+  // Check if current time is within the time window
+  const isWithinTime = currentTime >= startTime && currentTime <= endTime;
+  
+  if (schedule === 'business-hours') {
+    // Monday-Friday (1-5), within time window
+    const isWeekday = currentDay >= 1 && currentDay <= 5;
+    return isWeekday && isWithinTime;
+  }
+  
+  if (schedule === 'scheduled') {
+    // Check if today is in the selected days
+    const notifyDays = alertConfig.notifyDays || [1, 2, 3, 4, 5];
+    const isDayAllowed = notifyDays.includes(currentDay);
+    return isDayAllowed && isWithinTime;
+  }
+  
+  return true;
+}
+
 // Send email notification
 async function sendEmailNotification(subject, message, alertType) {
   if (!config.email.enabled) {
     console.log('Email notifications disabled');
     return false;
   }
+  
+  // Check notification schedule (skip for reports which have their own schedule)
+  if (alertType !== 'report' && !isWithinNotificationSchedule()) {
+    console.log('Email notification skipped - outside scheduled hours');
+    return false;
+  }
+  
   if (!config.email.host) {
     console.log('Email error: SMTP host not configured');
     return false;
@@ -450,9 +493,13 @@ const PRINTER_OIDS = {
   // Page Counts
   totalPages: '1.3.6.1.2.1.43.10.2.1.4.1.1',
   
-  // Alternative Page Count OIDs
+  // Alternative Page Count OIDs (different manufacturers)
   totalPagesAlt1: '1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.5.0',  // HP specific
   totalPagesAlt2: '1.3.6.1.2.1.43.10.2.1.4.1',             // Without instance
+  totalPagesAlt3: '1.3.6.1.4.1.1347.43.10.1.1.12.1.1',     // Kyocera
+  totalPagesAlt4: '1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.1',  // Xerox
+  totalPagesAlt5: '1.3.6.1.4.1.367.3.2.1.2.19.5.1.9.1',    // Ricoh
+  totalPagesAlt6: '1.3.6.1.2.1.43.10.2.1.5.1.1',           // prtMarkerLifeCount (alternate)
   
   // Supplies (prtMarkerSuppliesTable)
   supplyDesc: '1.3.6.1.2.1.43.11.1.1.6.1',
@@ -614,10 +661,25 @@ async function queryPrinter(ip, community = 'public') {
       printerData.status = DEVICE_STATUS[statusCode] || 'unknown';
     }
     
-    // Get page count - try multiple OIDs (HP uses different OIDs)
+    // Get page count - try multiple OIDs for different manufacturers
     let pages = await snmpGet(ip, PRINTER_OIDS.totalPages, community);
     if (!pages || isNaN(pages)) {
-      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt1, community);
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt1, community); // HP
+    }
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt2, community); // Without instance
+    }
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt3, community); // Kyocera
+    }
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt4, community); // Xerox
+    }
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt5, community); // Ricoh
+    }
+    if (!pages || isNaN(pages)) {
+      pages = await snmpGet(ip, PRINTER_OIDS.totalPagesAlt6, community); // prtMarkerLifeCount
     }
     if (pages && !isNaN(pages)) {
       printerData.totalPages = parseInt(pages);
@@ -741,12 +803,39 @@ async function queryPrinter(ip, community = 'public') {
           continue;
         }
         
+        // Handle SNMP special values for capacity:
+        // -1 = "some remaining" (unknown exact amount)
+        // -2 = "unknown"
+        // -3 = "at least one remaining"
+        // Values > 0 are actual counts
+        let finalMaxCapacity = null;
+        let finalCurrentLevel = null;
+        let capacityStatus = null;
+        
+        if (maxCapacity > 0) {
+          finalMaxCapacity = maxCapacity;
+        }
+        
+        if (currentLevel > 0) {
+          finalCurrentLevel = currentLevel;
+        } else if (currentLevel === -1) {
+          // "some remaining" - printer has paper but doesn't report exact count
+          capacityStatus = 'has-paper';
+        } else if (currentLevel === -3) {
+          // "at least one remaining"
+          capacityStatus = 'has-paper';
+        } else if (currentLevel === 0) {
+          // Empty
+          capacityStatus = 'empty';
+        }
+        
         printerData.trays.push({
           name: name.trim(),
-          maxCapacity: maxCapacity > 0 ? maxCapacity : null,
-          currentLevel: currentLevel >= 0 ? currentLevel : null,
+          maxCapacity: finalMaxCapacity,
+          currentLevel: finalCurrentLevel,
           status: TRAY_STATUS[statusCode] || 'unknown',
-          mediaName: mediaName && !/^-?\d+$/.test(mediaName) ? mediaName : null
+          mediaName: mediaName && !/^-?\d+$/.test(mediaName) ? mediaName : null,
+          capacityStatus: capacityStatus // 'has-paper', 'empty', or null (use currentLevel/maxCapacity)
         });
       }
     }

@@ -1,42 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Printer Analytics - Historical Data</title>
+  <title>Fleet Analytics - Printer Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
   <style>
-    .chart-container {
-      position: relative;
-      height: 300px;
-    }
+    .chart-container { position: relative; height: 280px; }
+    .chart-container-lg { position: relative; height: 350px; }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
   <!-- Header -->
-  <header class="bg-white shadow-sm border-b border-gray-200">
-    <div class="max-w-7xl mx-auto px-4 py-4">
+  <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 py-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <a href="standalone_dashboard.html" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="standalone_dashboard.html" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
           </a>
           <div>
-            <h1 class="text-2xl font-bold text-gray-800">📊 Printer Analytics</h1>
-            <p class="text-sm text-gray-500">Historical data and usage trends</p>
+            <h1 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Fleet Analytics
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Print volume, usage trends & supply monitoring</p>
           </div>
         </div>
-        <div class="flex items-center gap-4">
-          <select id="timeRange" class="px-3 py-2 border rounded-lg bg-white text-sm">
-            <option value="1">Last 1 Hour</option>
+        <div class="flex items-center gap-3">
+          <button onclick="toggleDarkMode()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Toggle dark mode">
+            <svg id="dark-mode-icon" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+          </button>
+          <select id="timeRange" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="1">Last Hour</option>
             <option value="6">Last 6 Hours</option>
             <option value="24" selected>Last 24 Hours</option>
           </select>
-          <button onclick="refreshData()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
+          <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
@@ -48,90 +59,119 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6">
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-gray-500">Pages Today</p>
-            <p id="pagesToday" class="text-3xl font-bold text-gray-800">-</p>
-          </div>
-          <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Key Metrics Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
           </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Today</p>
+            <p id="pagesToday" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+          </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-gray-500">Total All Time</p>
-            <p id="pagesAllTime" class="text-3xl font-bold text-gray-800">-</p>
-          </div>
-          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
             </svg>
           </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">All Time</p>
+            <p id="pagesAllTime" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+          </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-gray-500">Days Tracked</p>
-            <p id="daysTracked" class="text-3xl font-bold text-gray-800">-</p>
-          </div>
-          <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
           </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Days Tracked</p>
+            <p id="daysTracked" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
+          </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-gray-500">Low Supply Alerts</p>
-            <p id="alertCount" class="text-3xl font-bold text-orange-600">-</p>
-          </div>
-          <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
             </svg>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Active Printers</p>
+            <p id="activePrinters" class="text-2xl font-bold text-gray-900 dark:text-white">-</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Charts Row -->
+    <!-- Main Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- Daily Print Volume - Large -->
+      <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Daily Print Volume (Last 7 Days)
+        </h3>
+        <div class="chart-container-lg">
+          <canvas id="dailyVolumeChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Top Printers -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+          </svg>
+          Top Printers by Volume
+        </h3>
+        <div id="topPrintersList" class="space-y-3">
+          <p class="text-gray-400 text-sm text-center py-8">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Second Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <!-- Page Count Over Time -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">📈 Page Counts Over Time</h3>
+      <!-- Page Count Trend -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+          </svg>
+          Page Count Trend
+        </h3>
         <div class="chart-container">
           <canvas id="pageCountChart"></canvas>
         </div>
       </div>
       
-      <!-- Daily Print Volume -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">📊 Daily Print Volume</h3>
-        <div class="chart-container">
-          <canvas id="dailyVolumeChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <!-- Supply Levels Trend -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+      <!-- Supply Levels -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-800">🎨 Supply Level Trends</h3>
-          <select id="printerSelect" class="px-3 py-1 border rounded text-sm">
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+            </svg>
+            Supply Level Trends
+          </h3>
+          <select id="printerSelect" class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-blue-500">
             <option value="">Select Printer</option>
           </select>
         </div>
@@ -139,138 +179,126 @@
           <canvas id="supplyChart"></canvas>
         </div>
       </div>
-      
-      <!-- Top Printers -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">🏆 Top Printers by Volume</h3>
-        <div class="chart-container">
-          <canvas id="topPrintersChart"></canvas>
-        </div>
-      </div>
     </div>
 
-    <!-- Alerts & Top Printers Table -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Low Supply Alerts -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">⚠️ Low Supply Alerts</h3>
-        <div id="alertsList" class="space-y-3">
-          <p class="text-gray-500 text-center py-4">No low supply alerts</p>
-        </div>
-      </div>
-      
-      <!-- Printer Usage Table -->
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">📋 Printer Usage Summary</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b">
-                <th class="text-left py-2 text-gray-600">Printer</th>
-                <th class="text-right py-2 text-gray-600">Total</th>
-                <th class="text-right py-2 text-gray-600">Avg/Day</th>
-              </tr>
-            </thead>
-            <tbody id="usageTable">
-              <tr><td colspan="3" class="text-center py-4 text-gray-500">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
+    <!-- Supply Alerts -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        Supply Alerts
+        <span id="alertCountBadge" class="hidden ml-2 px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">0</span>
+      </h3>
+      <div id="alertsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <p class="text-gray-400 text-sm text-center py-4 col-span-full">No low supply alerts</p>
       </div>
     </div>
   </main>
 
   <script>
     const API_BASE = 'http://localhost:5000/api';
-    let pageCountChart, dailyVolumeChart, supplyChart, topPrintersChart;
+    let pageCountChart, dailyVolumeChart, supplyChart;
     let printerList = [];
+
+    // Dark mode functions
+    function initDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true' || 
+                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
+      updateDarkModeIcon();
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      updateDarkModeIcon();
+      // Recreate charts with new colors
+      initCharts();
+      refreshData();
+    }
+
+    function updateDarkModeIcon() {
+      const icon = document.getElementById('dark-mode-icon');
+      if (!icon) return;
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+      }
+    }
 
     // Initialize charts
     function initCharts() {
-      // Page Count Over Time Chart
-      const pageCtx = document.getElementById('pageCountChart').getContext('2d');
-      pageCountChart = new Chart(pageCtx, {
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#9ca3af' : '#6b7280';
+      const gridColor = isDark ? '#374151' : '#e5e7eb';
+      
+      const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false, labels: { color: textColor } } },
+        scales: {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: { ticks: { color: textColor }, grid: { color: gridColor } }
+        }
+      };
+
+      // Page Count Chart
+      pageCountChart = new Chart(document.getElementById('pageCountChart').getContext('2d'), {
         type: 'line',
         data: { datasets: [] },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          ...chartDefaults,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } } },
           scales: {
-            x: {
-              type: 'time',
-              time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
-              title: { display: true, text: 'Time' }
-            },
-            y: { title: { display: true, text: 'Total Pages' }, beginAtZero: false }
-          },
-          plugins: {
-            legend: { position: 'bottom' }
+            x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, grid: { display: false } },
+            y: { beginAtZero: false, grid: { color: '#f3f4f6' } }
           }
         }
       });
 
       // Daily Volume Chart
-      const dailyCtx = document.getElementById('dailyVolumeChart').getContext('2d');
-      dailyVolumeChart = new Chart(dailyCtx, {
+      dailyVolumeChart = new Chart(document.getElementById('dailyVolumeChart').getContext('2d'), {
         type: 'bar',
         data: { labels: [], datasets: [] },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          ...chartDefaults,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } } },
           scales: {
-            x: { stacked: true },
-            y: { stacked: true, title: { display: true, text: 'Pages Printed' } }
-          },
-          plugins: {
-            legend: { position: 'bottom' }
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, grid: { color: '#f3f4f6' } }
           }
         }
       });
 
-      // Supply Levels Chart
-      const supplyCtx = document.getElementById('supplyChart').getContext('2d');
-      supplyChart = new Chart(supplyCtx, {
+      // Supply Chart
+      supplyChart = new Chart(document.getElementById('supplyChart').getContext('2d'), {
         type: 'line',
         data: { datasets: [] },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          ...chartDefaults,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } } },
           scales: {
-            x: {
-              type: 'time',
-              time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }
-            },
-            y: { min: 0, max: 100, title: { display: true, text: 'Level %' } }
-          },
-          plugins: {
-            legend: { position: 'bottom' }
-          }
-        }
-      });
-
-      // Top Printers Chart
-      const topCtx = document.getElementById('topPrintersChart').getContext('2d');
-      topPrintersChart = new Chart(topCtx, {
-        type: 'doughnut',
-        data: { labels: [], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right' }
+            x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, grid: { display: false } },
+            y: { min: 0, max: 100, grid: { color: '#f3f4f6' } }
           }
         }
       });
     }
 
-    // Get supply color
+    // Get supply color based on name
     function getSupplyColor(name) {
       const n = name.toLowerCase();
-      if (n.includes('cyan')) return 'rgb(0, 188, 212)';
-      if (n.includes('magenta')) return 'rgb(233, 30, 99)';
-      if (n.includes('yellow')) return 'rgb(255, 193, 7)';
-      if (n.includes('black')) return 'rgb(33, 33, 33)';
-      return 'rgb(158, 158, 158)';
+      if (n.includes('cyan')) return 'rgb(6, 182, 212)';
+      if (n.includes('magenta')) return 'rgb(236, 72, 153)';
+      if (n.includes('yellow')) return 'rgb(234, 179, 8)';
+      if (n.includes('black')) return 'rgb(31, 41, 55)';
+      return 'rgb(107, 114, 128)';
     }
 
     // Load analytics data
@@ -283,54 +311,54 @@
         document.getElementById('pagesToday').textContent = data.summary.totalPagesToday.toLocaleString();
         document.getElementById('pagesAllTime').textContent = data.summary.totalPagesAllTime.toLocaleString();
         document.getElementById('daysTracked').textContent = data.summary.daysTracked;
-        document.getElementById('alertCount').textContent = data.lowSupplyAlerts.length;
+        document.getElementById('activePrinters').textContent = data.topPrinters.length;
+
+        // Update top printers list
+        const topList = document.getElementById('topPrintersList');
+        if (data.topPrinters.length > 0) {
+          const maxPages = Math.max(...data.topPrinters.map(p => p.totalPrinted));
+          topList.innerHTML = data.topPrinters.slice(0, 5).map((p, i) => {
+            const barWidth = maxPages > 0 ? (p.totalPrinted / maxPages * 100) : 0;
+            const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-violet-500'];
+            return `
+              <a href="printer-analytics.html?ip=${p.ip}" class="block group">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-medium text-gray-700 group-hover:text-blue-600 truncate">${p.name}</span>
+                  <span class="text-xs text-gray-500 ml-2">${p.totalPrinted.toLocaleString()}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                  <div class="${colors[i % colors.length]} h-2 rounded-full transition-all" style="width: ${barWidth}%"></div>
+                </div>
+              </a>
+            `;
+          }).join('');
+        } else {
+          topList.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No printer data yet</p>';
+        }
 
         // Update alerts list
         const alertsList = document.getElementById('alertsList');
+        const alertBadge = document.getElementById('alertCountBadge');
         if (data.lowSupplyAlerts.length > 0) {
-          alertsList.innerHTML = data.lowSupplyAlerts.map(alert => `
-            <a href="printer-analytics.html?ip=${alert.ip}" class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors">
-              <div>
-                <p class="font-medium text-gray-800">${alert.printerName || alert.ip}</p>
-                <p class="text-sm text-gray-600">${alert.supplyName}</p>
-              </div>
-              <div class="px-3 py-1 rounded-full text-sm font-medium ${alert.percentage < 10 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}">
-                ${alert.percentage}%
-              </div>
-            </a>
-          `).join('');
+          alertBadge.textContent = data.lowSupplyAlerts.length;
+          alertBadge.classList.remove('hidden');
+          alertsList.innerHTML = data.lowSupplyAlerts.map(alert => {
+            const isCritical = alert.percentage < 10;
+            return `
+              <a href="printer-analytics.html?ip=${alert.ip}" class="flex items-center gap-3 p-3 rounded-lg border ${isCritical ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'} hover:shadow-sm transition-shadow">
+                <div class="w-10 h-10 ${isCritical ? 'bg-red-100' : 'bg-amber-100'} rounded-full flex items-center justify-center flex-shrink-0">
+                  <span class="text-sm font-bold ${isCritical ? 'text-red-600' : 'text-amber-600'}">${alert.percentage}%</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-800 truncate">${alert.printerName || alert.ip}</p>
+                  <p class="text-xs text-gray-500 truncate">${alert.supplyName}</p>
+                </div>
+              </a>
+            `;
+          }).join('');
         } else {
-          alertsList.innerHTML = '<p class="text-gray-500 text-center py-4">✅ No low supply alerts</p>';
-        }
-
-        // Update usage table
-        const usageTable = document.getElementById('usageTable');
-        if (data.topPrinters.length > 0) {
-          usageTable.innerHTML = data.topPrinters.map(p => `
-            <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location.href='printer-analytics.html?ip=${p.ip}'">
-              <td class="py-2 text-blue-600 hover:underline">${p.name}</td>
-              <td class="text-right py-2 font-medium">${p.totalPrinted.toLocaleString()}</td>
-              <td class="text-right py-2 text-gray-600">${p.avgPerDay.toLocaleString()}</td>
-            </tr>
-          `).join('');
-        } else {
-          usageTable.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">No data yet</td></tr>';
-        }
-
-        // Update top printers chart
-        if (data.topPrinters.length > 0) {
-          topPrintersChart.data.labels = data.topPrinters.map(p => p.name.substring(0, 20));
-          topPrintersChart.data.datasets = [{
-            data: data.topPrinters.map(p => p.totalPrinted),
-            backgroundColor: [
-              'rgb(59, 130, 246)',
-              'rgb(16, 185, 129)',
-              'rgb(245, 158, 11)',
-              'rgb(239, 68, 68)',
-              'rgb(139, 92, 246)'
-            ]
-          }];
-          topPrintersChart.update();
+          alertBadge.classList.add('hidden');
+          alertsList.innerHTML = '<p class="text-gray-400 text-sm text-center py-4 col-span-full">✅ All supplies are healthy</p>';
         }
       } catch (error) {
         console.error('Failed to load analytics:', error);
@@ -345,51 +373,42 @@
         const response = await fetch(`${API_BASE}/history/snapshots?minutes=${minutes}`);
         const data = await response.json();
 
-        if (data.snapshots.length === 0) {
-          return;
-        }
+        if (data.snapshots.length === 0) return;
 
-        // Build datasets for page count chart
         const printerData = {};
         const colors = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(245, 158, 11)', 'rgb(239, 68, 68)', 'rgb(139, 92, 246)'];
         
         data.snapshots.forEach(snapshot => {
           snapshot.printers.forEach(printer => {
             if (!printerData[printer.ip]) {
-              printerData[printer.ip] = {
-                name: printer.name || printer.ip,
-                data: []
-              };
+              printerData[printer.ip] = { name: printer.name || printer.ip, data: [] };
               printerList.push({ ip: printer.ip, name: printer.name });
             }
-            printerData[printer.ip].data.push({
-              x: new Date(snapshot.timestamp),
-              y: printer.totalPages
-            });
+            printerData[printer.ip].data.push({ x: new Date(snapshot.timestamp), y: printer.totalPages });
           });
         });
 
-        // Update page count chart
         let colorIdx = 0;
         pageCountChart.data.datasets = Object.entries(printerData).map(([ip, info]) => ({
-          label: info.name.substring(0, 25),
+          label: info.name.substring(0, 20),
           data: info.data,
           borderColor: colors[colorIdx++ % colors.length],
-          tension: 0.1,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 0,
           fill: false
         }));
         pageCountChart.update();
 
-        // Update printer select dropdown
+        // Update printer select
         const select = document.getElementById('printerSelect');
         const currentValue = select.value;
         select.innerHTML = '<option value="">Select Printer</option>' + 
           [...new Set(printerList.map(p => p.ip))].map(ip => {
             const printer = printerList.find(p => p.ip === ip);
-            return `<option value="${ip}">${printer?.name || ip}</option>`;
+            return `<option value="${ip}">${(printer?.name || ip).substring(0, 25)}</option>`;
           }).join('');
         if (currentValue) select.value = currentValue;
-
       } catch (error) {
         console.error('Failed to load snapshots:', error);
       }
@@ -401,32 +420,39 @@
         const response = await fetch(`${API_BASE}/history/daily?days=7`);
         const data = await response.json();
 
-        if (data.data.length === 0) {
-          return;
-        }
+        if (data.data.length === 0) return;
 
-        // Build stacked bar chart data
-        const dates = data.data.map(d => d.date);
+        const dates = data.data.map(d => {
+          const date = new Date(d.date);
+          return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        });
+        
         const printers = new Set();
         data.data.forEach(d => Object.keys(d.printers).forEach(ip => printers.add(ip)));
 
-        const colors = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(245, 158, 11)', 'rgb(239, 68, 68)', 'rgb(139, 92, 246)'];
+        const colors = ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(139, 92, 246, 0.8)'];
         let colorIdx = 0;
+
+        // Get printer names for labels
+        const getPrinterName = (ip) => {
+          const printer = printerList.find(p => p.ip === ip);
+          return printer?.name?.substring(0, 15) || ip.split('.').slice(-2).join('.');
+        };
 
         dailyVolumeChart.data.labels = dates;
         dailyVolumeChart.data.datasets = Array.from(printers).map(ip => ({
-          label: ip.split('.').pop(), // Use last octet for brevity
+          label: getPrinterName(ip),
           data: data.data.map(d => d.printers[ip]?.pagesPrinted || 0),
-          backgroundColor: colors[colorIdx++ % colors.length]
+          backgroundColor: colors[colorIdx++ % colors.length],
+          borderRadius: 4
         }));
         dailyVolumeChart.update();
-
       } catch (error) {
         console.error('Failed to load daily data:', error);
       }
     }
 
-    // Load supply history for selected printer
+    // Load supply history
     async function loadSupplyHistory(ip) {
       if (!ip) {
         supplyChart.data.datasets = [];
@@ -440,34 +466,27 @@
         const response = await fetch(`${API_BASE}/history/printer/${ip}?minutes=${minutes}`);
         const data = await response.json();
 
-        if (data.recentHistory.length === 0) {
-          return;
-        }
+        if (data.recentHistory.length === 0) return;
 
-        // Build supply datasets
         const supplies = {};
         data.recentHistory.forEach(snapshot => {
           snapshot.supplies?.forEach(supply => {
-            if (!supplies[supply.name]) {
-              supplies[supply.name] = [];
-            }
-            supplies[supply.name].push({
-              x: new Date(snapshot.timestamp),
-              y: supply.percentage
-            });
+            if (!supplies[supply.name]) supplies[supply.name] = [];
+            supplies[supply.name].push({ x: new Date(snapshot.timestamp), y: supply.percentage });
           });
         });
 
         supplyChart.data.datasets = Object.entries(supplies).map(([name, data]) => ({
-          label: name.substring(0, 20),
+          label: name.substring(0, 15),
           data: data,
           borderColor: getSupplyColor(name),
           backgroundColor: getSupplyColor(name).replace('rgb', 'rgba').replace(')', ', 0.1)'),
-          tension: 0.1,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 0,
           fill: true
         }));
         supplyChart.update();
-
       } catch (error) {
         console.error('Failed to load supply history:', error);
       }
@@ -475,30 +494,20 @@
 
     // Refresh all data
     async function refreshData() {
-      await Promise.all([
-        loadAnalytics(),
-        loadSnapshots(),
-        loadDailyData()
-      ]);
-      
+      await Promise.all([loadAnalytics(), loadSnapshots(), loadDailyData()]);
       const selectedPrinter = document.getElementById('printerSelect').value;
-      if (selectedPrinter) {
-        loadSupplyHistory(selectedPrinter);
-      }
+      if (selectedPrinter) loadSupplyHistory(selectedPrinter);
     }
 
     // Event listeners
     document.getElementById('timeRange').addEventListener('change', refreshData);
-    document.getElementById('printerSelect').addEventListener('change', (e) => {
-      loadSupplyHistory(e.target.value);
-    });
+    document.getElementById('printerSelect').addEventListener('change', e => loadSupplyHistory(e.target.value));
 
-    // Initialize on load
+    // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+      initDarkMode();
       initCharts();
       refreshData();
-      
-      // Auto-refresh every 2 minutes
       setInterval(refreshData, 120000);
     });
   </script>

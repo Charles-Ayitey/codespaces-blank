@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,29 +7,37 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { gray: { 850: '#1f2937', 750: '#374151' } } } } }
+  </script>
   <style>
     .chart-container { position: relative; height: 280px; }
     .chart-container-lg { position: relative; height: 350px; }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-850 min-h-screen">
   <!-- Header -->
-  <header class="bg-white shadow-sm border-b border-gray-200">
+  <header class="bg-white dark:bg-gray-750 shadow-sm border-b border-gray-200 dark:border-gray-600">
     <div class="max-w-7xl mx-auto px-4 py-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <a href="analytics.html" class="text-gray-500 hover:text-gray-700">
+          <a href="analytics.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
           </a>
           <div>
-            <h1 id="printerName" class="text-2xl font-bold text-gray-800">📊 Printer Analytics</h1>
-            <p id="printerIp" class="text-sm text-gray-500">Loading...</p>
+            <h1 id="printerName" class="text-2xl font-bold text-gray-800 dark:text-gray-100">📊 Printer Analytics</h1>
+            <p id="printerIp" class="text-sm text-gray-500 dark:text-gray-300">Loading...</p>
           </div>
         </div>
         <div class="flex items-center gap-4">
-          <select id="timeRange" class="px-3 py-2 border rounded-lg bg-white text-sm">
+          <button onclick="toggleDarkMode()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600" title="Toggle dark mode">
+            <svg id="dark-mode-icon" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+          </button>
+          <select id="timeRange" class="px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white text-sm">
             <option value="1">Last 1 Hour</option>
             <option value="6">Last 6 Hours</option>
             <option value="24" selected>Last 24 Hours</option>
@@ -47,84 +55,84 @@
 
   <main class="max-w-7xl mx-auto px-4 py-6">
     <!-- Current Status Card -->
-    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">📍 Current Status</h3>
+    <div class="bg-white dark:bg-gray-750 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-600 mb-6">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📍 Current Status</h3>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="text-center p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-500">Status</p>
-          <p id="currentStatus" class="text-xl font-bold text-gray-800">-</p>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-500 dark:text-gray-300">Status</p>
+          <p id="currentStatus" class="text-xl font-bold text-gray-800 dark:text-gray-100">-</p>
         </div>
-        <div class="text-center p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-500">Total Pages</p>
-          <p id="currentPages" class="text-xl font-bold text-blue-600">-</p>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-500 dark:text-gray-300">Total Pages</p>
+          <p id="currentPages" class="text-xl font-bold text-blue-600 dark:text-blue-400">-</p>
         </div>
-        <div class="text-center p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-500">Pages Today</p>
-          <p id="pagesToday" class="text-xl font-bold text-green-600">-</p>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Pages Today</p>
+          <p id="pagesToday" class="text-xl font-bold text-green-600 dark:text-green-400">-</p>
         </div>
-        <div class="text-center p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-500">Uptime</p>
-          <p id="uptimePercent" class="text-xl font-bold text-purple-600">-</p>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Uptime</p>
+          <p id="uptimePercent" class="text-xl font-bold text-purple-600 dark:text-purple-400">-</p>
         </div>
-        <div class="text-center p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-500">Last Update</p>
-          <p id="lastUpdate" class="text-xl font-bold text-gray-600">-</p>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Last Update</p>
+          <p id="lastUpdate" class="text-xl font-bold text-gray-600 dark:text-gray-300">-</p>
         </div>
       </div>
     </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-500">Avg Pages/Day</p>
-            <p id="avgPagesDay" class="text-3xl font-bold text-gray-800">-</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Avg Pages/Day</p>
+            <p id="avgPagesDay" class="text-3xl font-bold text-gray-800 dark:text-white">-</p>
           </div>
-          <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
             </svg>
           </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-500">Total Tracked</p>
-            <p id="totalTracked" class="text-3xl font-bold text-gray-800">-</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Total Tracked</p>
+            <p id="totalTracked" class="text-3xl font-bold text-gray-800 dark:text-white">-</p>
           </div>
-          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
           </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-500">Days Tracked</p>
-            <p id="daysTracked" class="text-3xl font-bold text-gray-800">-</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Days Tracked</p>
+            <p id="daysTracked" class="text-3xl font-bold text-gray-800 dark:text-white">-</p>
           </div>
-          <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
           </div>
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-500">Low Supplies</p>
-            <p id="lowSupplies" class="text-3xl font-bold text-orange-600">-</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Low Supplies</p>
+            <p id="lowSupplies" class="text-3xl font-bold text-orange-600 dark:text-orange-400">-</p>
           </div>
-          <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/50 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
           </div>
@@ -192,6 +200,37 @@
     let printerIp = null;
     let pageCountChart, dailyVolumeChart, supplyChart, uptimeChart;
 
+    // Dark mode functions
+    function initDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true' || 
+                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
+      updateDarkModeIcon();
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      updateDarkModeIcon();
+      // Recreate charts with new colors
+      initCharts();
+      refreshData();
+    }
+
+    function updateDarkModeIcon() {
+      const icon = document.getElementById('dark-mode-icon');
+      if (!icon) return;
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+      }
+    }
+
     // Get printer IP from URL
     function getPrinterIp() {
       const params = new URLSearchParams(window.location.search);
@@ -200,8 +239,13 @@
 
     // Initialize charts
     function initCharts() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#9ca3af' : '#6b7280';
+      const gridColor = isDark ? '#374151' : '#e5e7eb';
+
       // Page Count History
       const pageCtx = document.getElementById('pageCountChart').getContext('2d');
+      if (pageCountChart) pageCountChart.destroy();
       pageCountChart = new Chart(pageCtx, {
         type: 'line',
         data: { datasets: [] },
@@ -212,9 +256,11 @@
             x: {
               type: 'time',
               time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
-              title: { display: true, text: 'Time' }
+              title: { display: true, text: 'Time', color: textColor },
+              ticks: { color: textColor },
+              grid: { color: gridColor }
             },
-            y: { title: { display: true, text: 'Total Pages' }, beginAtZero: false }
+            y: { title: { display: true, text: 'Total Pages', color: textColor }, beginAtZero: false, ticks: { color: textColor }, grid: { color: gridColor } }
           },
           plugins: { legend: { display: false } }
         }
@@ -505,6 +551,7 @@
         return;
       }
       
+      initDarkMode();
       initCharts();
       refreshData();
       

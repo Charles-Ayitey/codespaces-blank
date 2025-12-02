@@ -1,25 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings - Printer Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { gray: { 850: '#1f2937', 750: '#374151' } } } } }
+  </script>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-850 min-h-screen">
   <!-- Header -->
-  <header class="bg-white shadow-sm border-b border-gray-200">
+  <header class="bg-white dark:bg-gray-750 shadow-sm border-b border-gray-200 dark:border-gray-600">
     <div class="max-w-4xl mx-auto px-4 py-4">
       <div class="flex items-center gap-4">
-        <a href="standalone_dashboard.html" class="text-gray-500 hover:text-gray-700">
+        <a href="standalone_dashboard.html" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
           </svg>
         </a>
-        <div>
-          <h1 class="text-2xl font-bold text-gray-800">⚙️ Settings</h1>
-          <p class="text-sm text-gray-500">Configure notifications, alerts, and reports</p>
+        <div class="flex-1">
+          <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">⚙️ Settings</h1>
+          <p class="text-sm text-gray-500 dark:text-gray-300">Configure notifications, alerts, and reports</p>
         </div>
+        <button onclick="toggleDarkMode()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600" title="Toggle dark mode">
+          <svg id="dark-mode-icon" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
       </div>
     </div>
   </header>
@@ -31,18 +39,18 @@
     </div>
 
     <!-- Tabs -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-      <div class="flex border-b">
-        <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
+    <div class="bg-white dark:bg-gray-750 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 mb-6">
+      <div class="flex border-b dark:border-gray-600">
+        <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">
           📧 Email
         </button>
-        <button onclick="switchTab('webhooks')" id="tab-webhooks" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+        <button onclick="switchTab('webhooks')" id="tab-webhooks" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           🔗 Webhooks
         </button>
-        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           🔔 Alerts
         </button>
-        <button onclick="switchTab('reports')" id="tab-reports" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+        <button onclick="switchTab('reports')" id="tab-reports" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           📊 Reports
         </button>
       </div>
@@ -52,33 +60,33 @@
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="font-semibold text-gray-800">Email Notifications</h3>
-              <p class="text-sm text-gray-500">Receive alerts via email</p>
+              <h3 class="font-semibold text-gray-800 dark:text-white">Email Notifications</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Receive alerts via email</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="email-enabled" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
-              <input type="text" id="email-host" placeholder="smtp.gmail.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP Host</label>
+              <input type="text" id="email-host" placeholder="smtp.gmail.com" class="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
-              <input type="number" id="email-port" placeholder="587" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
+              <input type="number" id="email-port" placeholder="587" class="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Username (Email)</label>
-              <input type="email" id="email-user" placeholder="alerts@company.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username (Email)</label>
+              <input type="email" id="email-user" placeholder="alerts@company.com" class="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Password / App Password</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password / App Password</label>
               <input type="password" id="email-pass" placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
           </div>
@@ -177,6 +185,66 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Alert Cooldown: <span id="cooldown-value">4</span> hours</label>
             <input type="range" id="cooldown-hours" min="1" max="24" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
             <p class="text-xs text-gray-500 mt-1">Minimum time between repeated alerts for the same issue</p>
+          </div>
+
+          <!-- Notification Schedule -->
+          <div class="border-t pt-6 mt-6">
+            <h4 class="font-semibold text-gray-800 mb-4">📧 Email Notification Schedule</h4>
+            <p class="text-sm text-gray-500 mb-4">Control when you receive alert emails</p>
+            
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">When to Send Notifications</label>
+              <select id="notify-schedule" onchange="updateNotifyScheduleOptions()" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="always">Always (24/7)</option>
+                <option value="business-hours">Business Hours Only</option>
+                <option value="scheduled">Custom Schedule</option>
+              </select>
+            </div>
+
+            <div id="notify-schedule-options" class="hidden space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input type="time" id="notify-start-time" value="08:00" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input type="time" id="notify-end-time" value="18:00" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+              </div>
+
+              <div id="notify-days-selection">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Active Days</label>
+                <div class="flex flex-wrap gap-2">
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="0" class="notify-day sr-only"> Sun
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="1" class="notify-day sr-only" checked> Mon
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="2" class="notify-day sr-only" checked> Tue
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="3" class="notify-day sr-only" checked> Wed
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="4" class="notify-day sr-only" checked> Thu
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="5" class="notify-day sr-only" checked> Fri
+                  </label>
+                  <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                    <input type="checkbox" value="6" class="notify-day sr-only"> Sat
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedule Summary -->
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p id="notify-schedule-summary" class="text-sm text-blue-700">📬 Notifications will be sent immediately when alerts are triggered</p>
+            </div>
           </div>
         </div>
       </div>
@@ -293,17 +361,45 @@
     const API_BASE = 'http://localhost:5000/api';
     let config = {};
 
+    // Dark mode functions
+    function initDarkMode() {
+      const isDark = localStorage.getItem('darkMode') === 'true' || 
+                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
+      updateDarkModeIcon();
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      updateDarkModeIcon();
+    }
+
+    function updateDarkModeIcon() {
+      const icon = document.getElementById('dark-mode-icon');
+      if (!icon) return;
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+      }
+    }
+
     // Tab switching
     function switchTab(tab) {
       document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden'));
       document.querySelectorAll('[id^="tab-"]').forEach(t => {
-        t.classList.remove('border-blue-500', 'text-blue-600');
-        t.classList.add('border-transparent', 'text-gray-500');
+        t.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+        t.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
       });
       
       document.getElementById(`panel-${tab}`).classList.remove('hidden');
-      document.getElementById(`tab-${tab}`).classList.remove('border-transparent', 'text-gray-500');
-      document.getElementById(`tab-${tab}`).classList.add('border-blue-500', 'text-blue-600');
+      document.getElementById(`tab-${tab}`).classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+      document.getElementById(`tab-${tab}`).classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
     }
 
     // Toast notification
@@ -345,6 +441,16 @@
         document.getElementById('offline-minutes').value = config.alerts?.offlineMinutes || 5;
         document.getElementById('cooldown-hours').value = config.alerts?.cooldownHours || 4;
         updateSliderValues();
+        
+        // Notification schedule
+        document.getElementById('notify-schedule').value = config.alerts?.notifySchedule || 'always';
+        document.getElementById('notify-start-time').value = config.alerts?.notifyTime || '08:00';
+        document.getElementById('notify-end-time').value = config.alerts?.notifyEndTime || '18:00';
+        const notifyDays = config.alerts?.notifyDays || [1, 2, 3, 4, 5];
+        document.querySelectorAll('.notify-day').forEach(checkbox => {
+          checkbox.checked = notifyDays.includes(parseInt(checkbox.value));
+        });
+        updateNotifyScheduleOptions();
         
         // Reports
         document.getElementById('reports-enabled').checked = config.reports?.enabled || false;
@@ -513,7 +619,11 @@
           lowSupplyThreshold: parseInt(document.getElementById('low-supply-threshold').value),
           criticalSupplyThreshold: parseInt(document.getElementById('critical-supply-threshold').value),
           offlineMinutes: parseInt(document.getElementById('offline-minutes').value),
-          cooldownHours: parseInt(document.getElementById('cooldown-hours').value)
+          cooldownHours: parseInt(document.getElementById('cooldown-hours').value),
+          notifySchedule: document.getElementById('notify-schedule').value,
+          notifyDays: getSelectedNotifyDays(),
+          notifyTime: document.getElementById('notify-start-time').value,
+          notifyEndTime: document.getElementById('notify-end-time').value
         },
         reports: {
           enabled: document.getElementById('reports-enabled').checked,
@@ -639,8 +749,73 @@
     document.querySelectorAll('.report-day').forEach(checkbox => {
       checkbox.addEventListener('change', updateScheduleSummary);
     });
+    
+    // Event listeners for notification schedule
+    document.getElementById('notify-schedule').addEventListener('change', updateNotifyScheduleOptions);
+    document.getElementById('notify-start-time').addEventListener('change', updateNotifyScheduleSummary);
+    document.getElementById('notify-end-time').addEventListener('change', updateNotifyScheduleSummary);
+    document.querySelectorAll('.notify-day').forEach(checkbox => {
+      checkbox.addEventListener('change', updateNotifyScheduleSummary);
+    });
+    
+    // Get selected notification days
+    function getSelectedNotifyDays() {
+      const days = [];
+      document.querySelectorAll('.notify-day:checked').forEach(checkbox => {
+        days.push(parseInt(checkbox.value));
+      });
+      return days.length > 0 ? days : [1, 2, 3, 4, 5]; // Default to weekdays
+    }
+    
+    // Update notification schedule options visibility
+    function updateNotifyScheduleOptions() {
+      const schedule = document.getElementById('notify-schedule').value;
+      const scheduleOptions = document.getElementById('notify-schedule-options');
+      const daysSelection = document.getElementById('notify-days-selection');
+      
+      if (schedule === 'always') {
+        scheduleOptions.classList.add('hidden');
+      } else {
+        scheduleOptions.classList.remove('hidden');
+      }
+      
+      // Only show days selection for custom schedule
+      if (schedule === 'scheduled') {
+        daysSelection.classList.remove('hidden');
+      } else {
+        daysSelection.classList.add('hidden');
+      }
+      
+      updateNotifyScheduleSummary();
+    }
+    
+    // Update notification schedule summary
+    function updateNotifyScheduleSummary() {
+      const schedule = document.getElementById('notify-schedule').value;
+      const startTime = document.getElementById('notify-start-time').value;
+      const endTime = document.getElementById('notify-end-time').value;
+      const summaryEl = document.getElementById('notify-schedule-summary');
+      
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const start12 = formatTime12(startTime);
+      const end12 = formatTime12(endTime);
+      
+      let summary = '';
+      
+      if (schedule === 'always') {
+        summary = '📬 Notifications will be sent immediately when alerts are triggered';
+      } else if (schedule === 'business-hours') {
+        summary = `📬 Notifications from ${start12} to ${end12}, Monday-Friday`;
+      } else if (schedule === 'scheduled') {
+        const selectedDays = getSelectedNotifyDays().map(d => dayNames[d]).join(', ');
+        summary = `📬 Notifications from ${start12} to ${end12} on ${selectedDays}`;
+      }
+      
+      summaryEl.textContent = summary;
+    }
 
     // Initialize
+    initDarkMode();
     loadSettings();
   </script>
 </body>

@@ -155,7 +155,12 @@ const DEFAULT_CONFIG = {
     lowSupplyThreshold: 20,
     criticalSupplyThreshold: 10,
     offlineMinutes: 5,
-    cooldownHours: 4
+    cooldownHours: 4,
+    // Notification schedule (when to send alert emails)
+    notifySchedule: 'always', // always, scheduled, business-hours
+    notifyTime: '08:00',
+    notifyEndTime: '18:00',
+    notifyDays: [1, 2, 3, 4, 5] // Mon-Fri by default
   },
   reports: {
     enabled: false,
