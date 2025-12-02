@@ -1169,6 +1169,11 @@ app.post('/api/settings', (req, res) => {
   // Save to storage
   storage.saveConfig(config);
   
+  // Restart report scheduler if report settings changed
+  if (updates.reports) {
+    startReportScheduler();
+  }
+  
   res.json({ message: 'Settings saved', config: storage.getConfigForAPI(config) });
 });
 
@@ -1484,6 +1489,130 @@ setInterval(async () => {
     await checkAlerts();
   }
 }, 60000);
+
+// ============================================
+// Scheduled Report Generation
+// ============================================
+
+let reportCronJob = null;
+
+// Generate and email scheduled report
+async function generateScheduledReport() {
+  if (!config.reports.enabled || !config.reports.emailOnGenerate) {
+    return;
+  }
+  
+  console.log('Generating scheduled report...');
+  
+  try {
+    const printerList = Array.from(printers.values());
+    const format = config.reports.format || 'pdf';
+    
+    // Build report summary for email
+    const onlineCount = printerList.filter(p => p.online).length;
+    const offlineCount = printerList.filter(p => !p.online).length;
+    let lowSupplyCount = 0;
+    
+    printerList.forEach(p => {
+      if (p.supplies.some(s => s.max > 0 && (s.current / s.max * 100) < 20)) {
+        lowSupplyCount++;
+      }
+    });
+    
+    const subject = `Printer Fleet Report - ${new Date().toLocaleDateString()}`;
+    const message = `
+      <h3>Fleet Summary</h3>
+      <ul>
+        <li><strong>Total Printers:</strong> ${printerList.length}</li>
+        <li><strong>Online:</strong> ${onlineCount}</li>
+        <li><strong>Offline:</strong> ${offlineCount}</li>
+        <li><strong>Low Supplies:</strong> ${lowSupplyCount}</li>
+      </ul>
+      <h3>Printer Status</h3>
+      <table style="border-collapse: collapse; width: 100%;">
+        <tr style="background: #f3f4f6;">
+          <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Printer</th>
+          <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Status</th>
+          <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Pages</th>
+        </tr>
+        ${printerList.slice(0, 20).map(p => `
+          <tr>
+            <td style="border: 1px solid #d1d5db; padding: 8px;">${p.name || p.ip}</td>
+            <td style="border: 1px solid #d1d5db; padding: 8px;">${p.online ? '🟢 Online' : '🔴 Offline'}</td>
+            <td style="border: 1px solid #d1d5db; padding: 8px;">${p.totalPages.toLocaleString()}</td>
+          </tr>
+        `).join('')}
+      </table>
+      ${printerList.length > 20 ? `<p><em>...and ${printerList.length - 20} more printers</em></p>` : ''}
+    `;
+    
+    await sendEmailNotification(subject, message, 'report');
+    
+    // Update last run time
+    config.reports.lastRun = new Date().toISOString();
+    storage.saveConfig(config);
+    
+    console.log('Scheduled report sent successfully');
+  } catch (error) {
+    console.error('Failed to send scheduled report:', error.message);
+  }
+}
+
+// Build cron expression from schedule config
+function buildCronExpression() {
+  const schedule = config.reports.schedule;
+  const time = config.reports.time || '08:00';
+  const [hours, minutes] = time.split(':');
+  
+  switch (schedule) {
+    case 'daily':
+      // Every day at specified time
+      return `${minutes} ${hours} * * *`;
+    
+    case 'weekly':
+    case 'custom':
+      // On specified days at specified time
+      const days = config.reports.days || [1];
+      return `${minutes} ${hours} * * ${days.join(',')}`;
+    
+    case 'monthly':
+      // On specified day of month at specified time
+      const dayOfMonth = config.reports.dayOfMonth || 1;
+      return `${minutes} ${hours} ${dayOfMonth} * *`;
+    
+    default:
+      return `${minutes} ${hours} * * 1`; // Default: Monday at specified time
+  }
+}
+
+// Start or restart the report cron job
+function startReportScheduler() {
+  // Stop existing job if any
+  if (reportCronJob) {
+    reportCronJob.stop();
+    reportCronJob = null;
+  }
+  
+  if (!config.reports.enabled) {
+    console.log('Scheduled reports disabled');
+    return;
+  }
+  
+  const cronExpression = buildCronExpression();
+  console.log(`Starting report scheduler with cron: ${cronExpression}`);
+  
+  try {
+    reportCronJob = cron.schedule(cronExpression, () => {
+      generateScheduledReport();
+    });
+    console.log('Report scheduler started');
+  } catch (error) {
+    console.error('Failed to start report scheduler:', error.message);
+  }
+}
+
+// Start the scheduler on server init
+startReportScheduler();
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

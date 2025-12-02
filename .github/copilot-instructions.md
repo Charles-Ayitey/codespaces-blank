@@ -209,6 +209,22 @@ GET    /api/reports/supplies?format=json|csv|pdf
 | Record snapshot | 60s | `recordSnapshot()` → history.snapshots |
 | Save printers | 5min | Persists in-memory Map to `printers.json` |
 | Save history | 10min | Persists snapshots/daily to `history.json` |
+| Scheduled reports | Cron | `generateScheduledReport()` → emails fleet summary |
+
+## Report Scheduling
+Flexible scheduling via `config.reports`:
+```javascript
+{
+  enabled: true,
+  schedule: 'daily' | 'weekly' | 'monthly' | 'custom',
+  time: '08:00',           // HH:MM format
+  days: [1, 3, 5],         // 0=Sun, 1=Mon, ... 6=Sat (for weekly/custom)
+  dayOfMonth: 1,           // 1-28 (for monthly)
+  format: 'pdf' | 'csv',
+  emailOnGenerate: true
+}
+```
+Cron job restarts automatically when settings are saved via `startReportScheduler()`.
 
 ## Gitignored Files
 ```

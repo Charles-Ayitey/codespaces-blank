@@ -195,12 +195,55 @@
             </label>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
-            <select id="report-schedule" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Schedule Frequency</label>
+              <select id="report-schedule" onchange="updateScheduleOptions()" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="custom">Custom Days</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Time to Send</label>
+              <input type="time" id="report-time" value="08:00" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+
+          <!-- Weekly/Custom Days Selection -->
+          <div id="days-selection" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Select Days</label>
+            <div class="flex flex-wrap gap-2">
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="0" class="report-day sr-only"> Sun
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="1" class="report-day sr-only" checked> Mon
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="2" class="report-day sr-only"> Tue
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="3" class="report-day sr-only"> Wed
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="4" class="report-day sr-only"> Thu
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="5" class="report-day sr-only"> Fri
+              </label>
+              <label class="inline-flex items-center px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+                <input type="checkbox" value="6" class="report-day sr-only"> Sat
+              </label>
+            </div>
+          </div>
+
+          <!-- Monthly Day Selection -->
+          <div id="monthly-selection" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Day of Month</label>
+            <select id="report-day-of-month" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              ${[...Array(28)].map((_, i) => `<option value="${i+1}">${i+1}</option>`).join('')}
             </select>
           </div>
 
@@ -215,6 +258,12 @@
           <div class="flex items-center gap-2">
             <input type="checkbox" id="report-email" class="rounded border-gray-300">
             <label for="report-email" class="text-sm text-gray-700">Email reports to recipients</label>
+          </div>
+
+          <!-- Schedule Summary -->
+          <div id="schedule-summary" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 class="font-medium text-blue-800 mb-1">📅 Schedule Summary</h4>
+            <p id="schedule-summary-text" class="text-sm text-blue-700">Reports will be sent weekly on Monday at 08:00</p>
           </div>
 
           <div class="border-t pt-4">
@@ -302,6 +351,21 @@
         document.getElementById('report-schedule').value = config.reports?.schedule || 'weekly';
         document.getElementById('report-format').value = config.reports?.format || 'pdf';
         document.getElementById('report-email').checked = config.reports?.emailOnGenerate || false;
+        document.getElementById('report-time').value = config.reports?.time || '08:00';
+        
+        // Load day of month for monthly
+        const dayOfMonthSelect = document.getElementById('report-day-of-month');
+        if (dayOfMonthSelect) {
+          dayOfMonthSelect.value = config.reports?.dayOfMonth || 1;
+        }
+        
+        // Load selected days for weekly/custom
+        const selectedDays = config.reports?.days || [1];
+        document.querySelectorAll('.report-day').forEach(checkbox => {
+          checkbox.checked = selectedDays.includes(parseInt(checkbox.value));
+        });
+        
+        updateScheduleOptions();
         
       } catch (error) {
         showToast('Failed to load settings', 'error');
@@ -455,7 +519,10 @@
           enabled: document.getElementById('reports-enabled').checked,
           schedule: document.getElementById('report-schedule').value,
           format: document.getElementById('report-format').value,
-          emailOnGenerate: document.getElementById('report-email').checked
+          emailOnGenerate: document.getElementById('report-email').checked,
+          time: document.getElementById('report-time').value,
+          days: getSelectedDays(),
+          dayOfMonth: parseInt(document.getElementById('report-day-of-month').value) || 1
         }
       };
       
@@ -482,9 +549,95 @@
       window.open(`${API_BASE}/reports/${type}?format=${format}`, '_blank');
     }
 
+    // Get selected days from checkboxes
+    function getSelectedDays() {
+      const days = [];
+      document.querySelectorAll('.report-day:checked').forEach(checkbox => {
+        days.push(parseInt(checkbox.value));
+      });
+      return days.length > 0 ? days : [1]; // Default to Monday if none selected
+    }
+
+    // Update schedule options visibility based on selected frequency
+    function updateScheduleOptions() {
+      const schedule = document.getElementById('report-schedule').value;
+      const daysSelection = document.getElementById('days-selection');
+      const monthlySelection = document.getElementById('monthly-selection');
+      
+      // Show/hide appropriate options
+      if (schedule === 'weekly' || schedule === 'custom') {
+        daysSelection.classList.remove('hidden');
+        monthlySelection.classList.add('hidden');
+      } else if (schedule === 'monthly') {
+        daysSelection.classList.add('hidden');
+        monthlySelection.classList.remove('hidden');
+      } else {
+        daysSelection.classList.add('hidden');
+        monthlySelection.classList.add('hidden');
+      }
+      
+      updateScheduleSummary();
+    }
+
+    // Update the schedule summary text
+    function updateScheduleSummary() {
+      const schedule = document.getElementById('report-schedule').value;
+      const time = document.getElementById('report-time').value;
+      const summaryText = document.getElementById('schedule-summary-text');
+      
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const time12 = formatTime12(time);
+      
+      let summary = '';
+      
+      if (schedule === 'daily') {
+        summary = `Reports will be sent daily at ${time12}`;
+      } else if (schedule === 'weekly') {
+        const selectedDays = getSelectedDays().map(d => dayNames[d]).join(', ');
+        summary = `Reports will be sent weekly on ${selectedDays} at ${time12}`;
+      } else if (schedule === 'monthly') {
+        const dayOfMonth = document.getElementById('report-day-of-month').value;
+        const suffix = getDaySuffix(dayOfMonth);
+        summary = `Reports will be sent on the ${dayOfMonth}${suffix} of each month at ${time12}`;
+      } else if (schedule === 'custom') {
+        const selectedDays = getSelectedDays().map(d => dayNames[d]).join(', ');
+        summary = `Reports will be sent on ${selectedDays} at ${time12}`;
+      }
+      
+      summaryText.textContent = summary;
+    }
+
+    // Format time to 12-hour format
+    function formatTime12(time24) {
+      const [hours, minutes] = time24.split(':');
+      const h = parseInt(hours);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    }
+
+    // Get day suffix (1st, 2nd, 3rd, etc.)
+    function getDaySuffix(day) {
+      const d = parseInt(day);
+      if (d >= 11 && d <= 13) return 'th';
+      switch (d % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+      }
+    }
+
     // Event listeners for sliders
     document.querySelectorAll('input[type="range"]').forEach(slider => {
       slider.addEventListener('input', updateSliderValues);
+    });
+
+    // Event listeners for schedule updates
+    document.getElementById('report-time').addEventListener('change', updateScheduleSummary);
+    document.getElementById('report-day-of-month').addEventListener('change', updateScheduleSummary);
+    document.querySelectorAll('.report-day').forEach(checkbox => {
+      checkbox.addEventListener('change', updateScheduleSummary);
     });
 
     // Initialize

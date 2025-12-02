@@ -159,10 +159,14 @@ const DEFAULT_CONFIG = {
   },
   reports: {
     enabled: false,
-    schedule: 'weekly', // daily, weekly, monthly
+    schedule: 'weekly', // daily, weekly, monthly, custom
     format: 'pdf',
     emailOnGenerate: false,
-    lastRun: null
+    lastRun: null,
+    // Custom schedule options
+    time: '08:00', // Time to send report (HH:MM)
+    days: [1], // Days to send: 0=Sun, 1=Mon, ... 6=Sat (for weekly/custom)
+    dayOfMonth: 1 // Day of month for monthly reports (1-28)
   }
 };
 
