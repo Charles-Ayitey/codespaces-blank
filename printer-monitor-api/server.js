@@ -1713,8 +1713,11 @@ function startReportScheduler() {
 // Start the scheduler on server init
 startReportScheduler();
 
+// Determine the host to bind to
+const HOST = process.env.ELECTRON_APP === 'true' ? '127.0.0.1' : '0.0.0.0';
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, HOST, () => {
   console.log('='.repeat(60));
   console.log('Printer Monitoring API Server (Node.js)');
   console.log('='.repeat(60));
@@ -1740,6 +1743,16 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('\nReports:');
   console.log('  GET    /api/reports/usage     - Usage report (json/csv/pdf)');
   console.log('  GET    /api/reports/supplies  - Supply report (json/csv/pdf)');
-  console.log(`\nServer running on http://localhost:${PORT}`);
+  console.log(`\nServer running on http://${HOST}:${PORT}`);
   console.log('='.repeat(60));
+});
+
+// Handle server errors
+server.on('error', (err) => {
+  console.error('Server error:', err.message);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use!`);
+  } else if (err.code === 'EACCES') {
+    console.error(`Permission denied to bind to port ${PORT}`);
+  }
 });
