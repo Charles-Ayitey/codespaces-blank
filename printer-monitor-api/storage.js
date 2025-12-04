@@ -6,20 +6,37 @@ const fs = require('fs');
 const path = require('path');
 const CryptoJS = require('crypto-js');
 
-// Data directory
-const DATA_DIR = path.join(__dirname, 'data');
+// Data directory - use user data folder in Electron, otherwise local data folder
+function getDataDir() {
+  // Check if running in Electron
+  if (process.env.ELECTRON_APP === 'true') {
+    // Use Electron's app.getPath('userData') equivalent
+    const userDataPath = process.env.APPDATA || 
+      (process.platform === 'darwin' 
+        ? path.join(process.env.HOME, 'Library', 'Application Support')
+        : path.join(process.env.HOME, '.config'));
+    return path.join(userDataPath, 'printer-monitor', 'data');
+  }
+  // Default: local data directory
+  return path.join(__dirname, 'data');
+}
+
+const DATA_DIR = getDataDir();
 
 // Ensure data directory exists
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    console.log('Created data directory');
+    console.log('Created data directory:', DATA_DIR);
   }
 }
 
 // Get or generate encryption key
 function getEncryptionKey() {
-  const envPath = path.join(__dirname, '.env');
+  // In Electron, store .env in data directory
+  const envDir = process.env.ELECTRON_APP === 'true' ? DATA_DIR : __dirname;
+  ensureDataDir(); // Make sure data dir exists first
+  const envPath = path.join(envDir, '.env');
   
   // Try to load existing key
   if (fs.existsSync(envPath)) {
@@ -40,7 +57,7 @@ function getEncryptionKey() {
   // Save to .env file
   const envContent = `# Auto-generated encryption key - DO NOT SHARE OR COMMIT\nENCRYPTION_KEY=${key}\n`;
   fs.writeFileSync(envPath, envContent);
-  console.log('Generated new encryption key in .env file');
+  console.log('Generated new encryption key in:', envPath);
   
   return key;
 }

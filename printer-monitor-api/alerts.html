@@ -112,7 +112,7 @@
   <div id="toast" class="hidden fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50"></div>
 
   <script>
-    const API_BASE = 'http://localhost:5000/api';
+    const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000/api' : '/api';
     let allAlerts = [];
 
     // Dark mode functions

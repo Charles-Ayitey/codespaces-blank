@@ -11,14 +11,24 @@ const snmp = require('net-snmp');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const PDFDocument = require('pdfkit');
+const path = require('path');
 const storage = require('./storage');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+
+// Get app directory (works in Electron and standalone)
+const APP_DIR = process.env.APP_PATH || __dirname;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static HTML files (for desktop and server modes)
+app.use(express.static(APP_DIR, {
+  extensions: ['html'],
+  index: 'standalone_dashboard.html'
+}));
 
 // ============================================
 // Data Storage (In-memory with persistence)

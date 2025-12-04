@@ -1,0 +1,31 @@
+[Unit]
+Description=Printer Monitor - SNMP-based printer monitoring service
+Documentation=https://github.com/your-org/printer-monitor
+After=network.target
+
+[Service]
+Type=simple
+User=printermonitor
+Group=printermonitor
+WorkingDirectory=/opt/printer-monitor
+ExecStart=/usr/bin/node /opt/printer-monitor/server.js
+Restart=on-failure
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=5000
+
+# Logging
+StandardOutput=append:/var/log/printer-monitor/output.log
+StandardError=append:/var/log/printer-monitor/error.log
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/printer-monitor/data /var/log/printer-monitor
+
+[Install]
+WantedBy=multi-user.target

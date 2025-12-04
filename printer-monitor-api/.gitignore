@@ -10,6 +10,7 @@ data/
 # Logs
 *.log
 npm-debug.log*
+printer-monitor.log
 
 # OS files
 .DS_Store
@@ -22,3 +23,18 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Build outputs
+dist/
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# PID files
+*.pid
+
+# Coverage
+coverage/
