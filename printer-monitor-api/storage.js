@@ -173,6 +173,14 @@ const DEFAULT_CONFIG = {
     criticalSupplyThreshold: 10,
     offlineMinutes: 5,
     cooldownHours: 4,
+    // Per-alert-type toggles
+    alertTypes: {
+      'critical-supply': true,
+      'low-supply': true,
+      'offline': true,
+      'back-online': true,
+      'error': true
+    },
     // Notification schedule (when to send alert emails)
     notifySchedule: 'always', // always, scheduled, business-hours
     notifyTime: '08:00',

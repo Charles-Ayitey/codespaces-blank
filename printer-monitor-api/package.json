@@ -24,7 +24,10 @@
     "url": "https://github.com/Charles-Ayitey/printer-monitor.git"
   },
   "keywords": ["printer", "snmp", "monitoring", "api", "alerts", "reports", "electron", "desktop"],
-  "author": "Printer Monitor Team",
+  "author": {
+    "name": "Printer Monitor Team",
+    "email": "harley1362003@gmail.com"
+  },
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
@@ -118,7 +121,15 @@
       ],
       "icon": "build/icons",
       "category": "Utility",
-      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+      "executableName": "printer-monitor"
+    },
+    "rpm": {
+      "fpm": [
+        "--after-install", "scripts/rpm-post-install.sh",
+        "--rpm-attr", "755,root,root:/opt/Printer Monitor",
+        "--rpm-attr", "755,root,root:/opt/Printer Monitor/printer-monitor"
+      ]
     },
     "nsis": {
       "oneClick": false,

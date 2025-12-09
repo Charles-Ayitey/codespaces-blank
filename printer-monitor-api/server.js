@@ -343,6 +343,20 @@ async function sendWebhookNotification(subject, message, alertType) {
 
 // Trigger an alert
 async function triggerAlert(type, printerIp, printerName, supplyName, details) {
+  // Check if this alert type is enabled
+  const alertTypes = config.alerts.alertTypes || {
+    'critical-supply': true,
+    'low-supply': true,
+    'offline': true,
+    'back-online': true,
+    'error': true
+  };
+  
+  if (!alertTypes[type]) {
+    console.log(`Alert type "${type}" is disabled, skipping alert for ${printerName}`);
+    return null;
+  }
+  
   const cooldownKey = supplyName 
     ? `${printerIp}-${type}-${supplyName}`
     : `${printerIp}-${type}`;

@@ -8,6 +8,19 @@
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { gray: { 850: '#1f2937', 750: '#374151' } } } } }
   </script>
+  <style>
+    /* High contrast mode overrides */
+    .high-contrast.dark body { background-color: #000; }
+    .high-contrast.dark .bg-gray-750, .high-contrast.dark .dark\:bg-gray-750 { background-color: #111 !important; }
+    .high-contrast.dark .bg-gray-800, .high-contrast.dark .dark\:bg-gray-800 { background-color: #111 !important; }
+    .high-contrast.dark .bg-gray-850, .high-contrast.dark .dark\:bg-gray-850 { background-color: #000 !important; }
+    .high-contrast.dark .text-gray-100, .high-contrast.dark .dark\:text-gray-100 { color: #fff !important; }
+    .high-contrast.dark .text-gray-200, .high-contrast.dark .dark\:text-gray-200 { color: #fff !important; }
+    .high-contrast.dark .text-gray-300, .high-contrast.dark .dark\:text-gray-300 { color: #eee !important; }
+    .high-contrast.dark .text-gray-400, .high-contrast.dark .dark\:text-gray-400 { color: #ddd !important; }
+    .high-contrast.dark .border-gray-600, .high-contrast.dark .dark\:border-gray-600 { border-color: #444 !important; }
+    .high-contrast.dark .border-gray-700, .high-contrast.dark .dark\:border-gray-700 { border-color: #444 !important; }
+  </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-850 min-h-screen">
   <!-- Header -->
@@ -21,13 +34,8 @@
         </a>
         <div class="flex-1">
           <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">⚙️ Settings</h1>
-          <p class="text-sm text-gray-500 dark:text-gray-300">Configure notifications, alerts, and reports</p>
+          <p class="text-sm text-gray-500 dark:text-gray-300">Configure notifications, alerts, appearance, and reports</p>
         </div>
-        <button onclick="toggleDarkMode()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600" title="Toggle dark mode">
-          <svg id="dark-mode-icon" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-          </svg>
-        </button>
       </div>
     </div>
   </header>
@@ -40,19 +48,79 @@
 
     <!-- Tabs -->
     <div class="bg-white dark:bg-gray-750 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 mb-6">
-      <div class="flex border-b dark:border-gray-600">
-        <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">
+      <div class="flex border-b dark:border-gray-600 overflow-x-auto">
+        <button onclick="switchTab('appearance')" id="tab-appearance" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 whitespace-nowrap">
+          🎨 Appearance
+        </button>
+        <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap">
           📧 Email
         </button>
-        <button onclick="switchTab('webhooks')" id="tab-webhooks" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <button onclick="switchTab('webhooks')" id="tab-webhooks" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap">
           🔗 Webhooks
         </button>
-        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <button onclick="switchTab('alerts')" id="tab-alerts" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap">
           🔔 Alerts
         </button>
-        <button onclick="switchTab('reports')" id="tab-reports" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <button onclick="switchTab('reports')" id="tab-reports" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap">
           📊 Reports
         </button>
+      </div>
+
+      <!-- Appearance Tab -->
+      <div id="panel-appearance" class="p-6">
+        <div class="space-y-6">
+          <div>
+            <h3 class="font-semibold text-gray-800 dark:text-white mb-1">Theme</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose your preferred color theme</p>
+            
+            <div class="grid grid-cols-3 gap-4 max-w-md">
+              <button onclick="setTheme('light')" id="theme-light" class="p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all hover:border-blue-400 dark:hover:border-blue-500">
+                <div class="w-12 h-12 bg-white border border-gray-200 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Light</span>
+              </button>
+              
+              <button onclick="setTheme('dark')" id="theme-dark" class="p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all hover:border-blue-400 dark:hover:border-blue-500">
+                <div class="w-12 h-12 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Dark</span>
+              </button>
+              
+              <button onclick="setTheme('system')" id="theme-system" class="p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all hover:border-blue-400 dark:hover:border-blue-500">
+                <div class="w-12 h-12 bg-gradient-to-br from-white to-gray-800 border border-gray-300 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">System</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="border-t dark:border-gray-600 pt-6">
+            <h3 class="font-semibold text-gray-800 dark:text-white mb-1">Accessibility</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Adjust display settings for better visibility</p>
+            
+            <div class="space-y-4 max-w-md">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium text-gray-700 dark:text-gray-200">High Contrast Mode</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Increase color contrast for better readability</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="high-contrast" class="sr-only peer">
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Email Tab -->
@@ -154,47 +222,132 @@
         <div class="space-y-6">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="font-semibold text-gray-800">Alert System</h3>
-              <p class="text-sm text-gray-500">Enable or disable all alerts</p>
+              <h3 class="font-semibold text-gray-800 dark:text-white">Alert System</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Enable or disable all alerts</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="alerts-enabled" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Low Supply Threshold: <span id="low-supply-value">20</span>%</label>
-            <input type="range" id="low-supply-threshold" min="5" max="50" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-            <p class="text-xs text-gray-500 mt-1">Alert when toner/ink falls below this level</p>
+          <!-- Individual Alert Type Toggles -->
+          <div class="border-t dark:border-gray-600 pt-6">
+            <h4 class="font-semibold text-gray-800 dark:text-white mb-4">🔔 Alert Types</h4>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Enable or disable specific alert notifications</p>
+            
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">🚨</span>
+                  <div>
+                    <p class="font-medium text-gray-800 dark:text-gray-100">Critical Supply Alerts</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">When supplies are critically low</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="alert-critical-supply" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">⚠️</span>
+                  <div>
+                    <p class="font-medium text-gray-800 dark:text-gray-100">Low Supply Alerts</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">When supplies are running low</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="alert-low-supply" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">❌</span>
+                  <div>
+                    <p class="font-medium text-gray-800 dark:text-gray-100">Offline Alerts</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">When printers go offline</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="alert-offline" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600 dark:peer-checked:bg-gray-500"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">✅</span>
+                  <div>
+                    <p class="font-medium text-gray-800 dark:text-gray-100">Back Online Alerts</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">When printers come back online</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="alert-back-online" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">⚡</span>
+                  <div>
+                    <p class="font-medium text-gray-800 dark:text-gray-100">Error Alerts</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">When printers report errors</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="alert-error" class="sr-only peer" checked>
+                  <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Critical Supply Threshold: <span id="critical-supply-value">10</span>%</label>
-            <input type="range" id="critical-supply-threshold" min="1" max="30" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-            <p class="text-xs text-gray-500 mt-1">Urgent alert when supply is critically low</p>
-          </div>
+          <!-- Thresholds -->
+          <div class="border-t dark:border-gray-600 pt-6">
+            <h4 class="font-semibold text-gray-800 dark:text-white mb-4">📊 Thresholds</h4>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Low Supply Threshold: <span id="low-supply-value" class="text-blue-600 dark:text-blue-400">20</span>%</label>
+                <input type="range" id="low-supply-threshold" min="5" max="50" value="20" class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Alert when toner/ink falls below this level</p>
+              </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Offline Alert After: <span id="offline-value">5</span> minutes</label>
-            <input type="range" id="offline-minutes" min="1" max="30" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-            <p class="text-xs text-gray-500 mt-1">Wait this long before alerting about offline printers</p>
-          </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Supply Threshold: <span id="critical-supply-value" class="text-red-600 dark:text-red-400">10</span>%</label>
+                <input type="range" id="critical-supply-threshold" min="1" max="30" value="10" class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Urgent alert when supply is critically low</p>
+              </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Alert Cooldown: <span id="cooldown-value">4</span> hours</label>
-            <input type="range" id="cooldown-hours" min="1" max="24" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-            <p class="text-xs text-gray-500 mt-1">Minimum time between repeated alerts for the same issue</p>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Offline Alert After: <span id="offline-value" class="text-gray-600 dark:text-gray-300">5</span> minutes</label>
+                <input type="range" id="offline-minutes" min="1" max="30" value="5" class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Wait this long before alerting about offline printers</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Alert Cooldown: <span id="cooldown-value" class="text-purple-600 dark:text-purple-400">4</span> hours</label>
+                <input type="range" id="cooldown-hours" min="1" max="24" value="4" class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum time between repeated alerts for the same issue</p>
+              </div>
+            </div>
           </div>
 
           <!-- Notification Schedule -->
-          <div class="border-t pt-6 mt-6">
-            <h4 class="font-semibold text-gray-800 mb-4">📧 Email Notification Schedule</h4>
-            <p class="text-sm text-gray-500 mb-4">Control when you receive alert emails</p>
+          <div class="border-t dark:border-gray-600 pt-6 mt-6">
+            <h4 class="font-semibold text-gray-800 dark:text-white mb-4">📧 Email Notification Schedule</h4>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Control when you receive alert emails</p>
             
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">When to Send Notifications</label>
-              <select id="notify-schedule" onchange="updateNotifyScheduleOptions()" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">When to Send Notifications</label>
+              <select id="notify-schedule" onchange="updateNotifyScheduleOptions()" class="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
                 <option value="always">Always (24/7)</option>
                 <option value="business-hours">Business Hours Only</option>
                 <option value="scheduled">Custom Schedule</option>
@@ -361,33 +514,56 @@
     const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000/api' : '/api';
     let config = {};
 
-    // Dark mode functions
-    function initDarkMode() {
-      const isDark = localStorage.getItem('darkMode') === 'true' || 
-                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      if (isDark) {
+    // Theme functions
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'system';
+      applyTheme(savedTheme);
+      updateThemeButtons(savedTheme);
+    }
+
+    function setTheme(theme) {
+      localStorage.setItem('theme', theme);
+      applyTheme(theme);
+      updateThemeButtons(theme);
+    }
+
+    function applyTheme(theme) {
+      if (theme === 'dark') {
         document.documentElement.classList.add('dark');
-      }
-      updateDarkModeIcon();
-    }
-
-    function toggleDarkMode() {
-      document.documentElement.classList.toggle('dark');
-      const isDark = document.documentElement.classList.contains('dark');
-      localStorage.setItem('darkMode', isDark);
-      updateDarkModeIcon();
-    }
-
-    function updateDarkModeIcon() {
-      const icon = document.getElementById('dark-mode-icon');
-      if (!icon) return;
-      const isDark = document.documentElement.classList.contains('dark');
-      if (isDark) {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else if (theme === 'light') {
+        document.documentElement.classList.remove('dark');
       } else {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+        // System preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
       }
     }
+
+    function updateThemeButtons(theme) {
+      const buttons = ['theme-light', 'theme-dark', 'theme-system'];
+      buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          if (id === `theme-${theme}`) {
+            btn.classList.add('border-blue-500', 'dark:border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30');
+            btn.classList.remove('border-gray-200', 'dark:border-gray-600');
+          } else {
+            btn.classList.remove('border-blue-500', 'dark:border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30');
+            btn.classList.add('border-gray-200', 'dark:border-gray-600');
+          }
+        }
+      });
+    }
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (localStorage.getItem('theme') === 'system') {
+        applyTheme('system');
+      }
+    });
 
     // Tab switching
     function switchTab(tab) {
@@ -434,8 +610,18 @@
         // Webhooks
         renderWebhooks();
         
-        // Alerts
+        // Alerts - main toggle
         document.getElementById('alerts-enabled').checked = config.alerts?.enabled !== false;
+        
+        // Alert type toggles (use alertTypes object with kebab-case keys)
+        const alertTypes = config.alerts?.alertTypes || {};
+        document.getElementById('alert-critical-supply').checked = alertTypes['critical-supply'] !== false;
+        document.getElementById('alert-low-supply').checked = alertTypes['low-supply'] !== false;
+        document.getElementById('alert-offline').checked = alertTypes['offline'] !== false;
+        document.getElementById('alert-back-online').checked = alertTypes['back-online'] !== false;
+        document.getElementById('alert-error').checked = alertTypes['error'] !== false;
+        
+        // Thresholds
         document.getElementById('low-supply-threshold').value = config.alerts?.lowSupplyThreshold || 20;
         document.getElementById('critical-supply-threshold').value = config.alerts?.criticalSupplyThreshold || 10;
         document.getElementById('offline-minutes').value = config.alerts?.offlineMinutes || 5;
@@ -472,6 +658,13 @@
         });
         
         updateScheduleOptions();
+        
+        // Load appearance settings
+        const highContrast = localStorage.getItem('highContrast') === 'true';
+        document.getElementById('high-contrast').checked = highContrast;
+        if (highContrast) {
+          document.documentElement.classList.add('high-contrast');
+        }
         
       } catch (error) {
         showToast('Failed to load settings', 'error');
@@ -616,6 +809,13 @@
         webhooks: config.webhooks || [],
         alerts: {
           enabled: document.getElementById('alerts-enabled').checked,
+          alertTypes: {
+            'critical-supply': document.getElementById('alert-critical-supply').checked,
+            'low-supply': document.getElementById('alert-low-supply').checked,
+            'offline': document.getElementById('alert-offline').checked,
+            'back-online': document.getElementById('alert-back-online').checked,
+            'error': document.getElementById('alert-error').checked
+          },
           lowSupplyThreshold: parseInt(document.getElementById('low-supply-threshold').value),
           criticalSupplyThreshold: parseInt(document.getElementById('critical-supply-threshold').value),
           offlineMinutes: parseInt(document.getElementById('offline-minutes').value),
@@ -635,6 +835,15 @@
           dayOfMonth: parseInt(document.getElementById('report-day-of-month').value) || 1
         }
       };
+      
+      // Save appearance settings locally
+      const highContrast = document.getElementById('high-contrast').checked;
+      localStorage.setItem('highContrast', highContrast);
+      if (highContrast) {
+        document.documentElement.classList.add('high-contrast');
+      } else {
+        document.documentElement.classList.remove('high-contrast');
+      }
       
       try {
         const response = await fetch(`${API_BASE}/settings`, {
@@ -815,7 +1024,7 @@
     }
 
     // Initialize
-    initDarkMode();
+    initTheme();
     loadSettings();
   </script>
 </body>

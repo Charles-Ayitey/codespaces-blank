@@ -13,6 +13,15 @@
   <style>
     .chart-container { position: relative; height: 280px; }
     .chart-container-lg { position: relative; height: 350px; }
+    /* High contrast mode overrides */
+    .high-contrast.dark body { background-color: #000; }
+    .high-contrast.dark .bg-gray-800, .high-contrast.dark .dark\:bg-gray-800 { background-color: #111 !important; }
+    .high-contrast.dark .bg-gray-900, .high-contrast.dark .dark\:bg-gray-900 { background-color: #000 !important; }
+    .high-contrast.dark .text-white, .high-contrast.dark .dark\:text-white { color: #fff !important; }
+    .high-contrast.dark .text-gray-200, .high-contrast.dark .dark\:text-gray-200 { color: #fff !important; }
+    .high-contrast.dark .text-gray-300, .high-contrast.dark .dark\:text-gray-300 { color: #eee !important; }
+    .high-contrast.dark .text-gray-400, .high-contrast.dark .dark\:text-gray-400 { color: #ddd !important; }
+    .high-contrast.dark .border-gray-700, .high-contrast.dark .dark\:border-gray-700 { border-color: #444 !important; }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -37,11 +46,6 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <button onclick="toggleDarkMode()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Toggle dark mode">
-            <svg id="dark-mode-icon" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-            </svg>
-          </button>
           <select id="timeRange" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             <option value="1">Last Hour</option>
             <option value="6">Last 6 Hours</option>
@@ -201,36 +205,36 @@
     let pageCountChart, dailyVolumeChart, supplyChart;
     let printerList = [];
 
-    // Dark mode functions
-    function initDarkMode() {
-      const isDark = localStorage.getItem('darkMode') === 'true' || 
-                    (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      if (isDark) {
+    // Theme initialization - reads from localStorage (set in settings)
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'system';
+      if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
-      }
-      updateDarkModeIcon();
-    }
-
-    function toggleDarkMode() {
-      document.documentElement.classList.toggle('dark');
-      const isDark = document.documentElement.classList.contains('dark');
-      localStorage.setItem('darkMode', isDark);
-      updateDarkModeIcon();
-      // Recreate charts with new colors
-      initCharts();
-      refreshData();
-    }
-
-    function updateDarkModeIcon() {
-      const icon = document.getElementById('dark-mode-icon');
-      if (!icon) return;
-      const isDark = document.documentElement.classList.contains('dark');
-      if (isDark) {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
       } else {
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+        // System preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+      // Apply high contrast if enabled
+      if (localStorage.getItem('highContrast') === 'true') {
+        document.documentElement.classList.add('high-contrast');
       }
     }
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (localStorage.getItem('theme') === 'system') {
+        initTheme();
+        // Recreate charts with new colors
+        initCharts();
+        refreshData();
+      }
+    });
 
     // Initialize charts
     function initCharts() {
@@ -505,7 +509,7 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-      initDarkMode();
+      initTheme();
       initCharts();
       refreshData();
       setInterval(refreshData, 120000);

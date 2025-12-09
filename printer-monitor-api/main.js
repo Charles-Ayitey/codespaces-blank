@@ -102,7 +102,7 @@ let serverStarted = false;
 
 // Configuration
 let PORT = 5050;
-let SERVER_URL = `http://localhost:${PORT}`;
+let SERVER_URL = `http://127.0.0.1:${PORT}`;
 const isDev = process.env.NODE_ENV === 'development';
 
 /**
@@ -589,7 +589,7 @@ if (!gotTheLock) {
       
       // Find an available port to avoid conflicts on user systems
       PORT = await findAvailablePort(5050, 200);
-      SERVER_URL = `http://localhost:${PORT}`;
+      SERVER_URL = `http://127.0.0.1:${PORT}`;
       console.log('Selected API port:', PORT);
       
       // Start the server first
